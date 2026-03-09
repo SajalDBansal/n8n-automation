@@ -15,7 +15,7 @@ export const registerZodSchema = z.object({
     path: ["confirmPassword"]
 })
 
-export const loginZodSchema = z.object({
+export const signinZodSchema = z.object({
     email: z.string().trim().email("Invalid email format"),
     password: z.string().min(8)
         .regex(/[A-Z]/, "Must include uppercase letter")
@@ -23,7 +23,7 @@ export const loginZodSchema = z.object({
 })
 
 export const verifyOTPZodSchema = z.object({
-    email: z.string().trim().email("Invalid email format"),
+    token: z.string({ message: "Must be a proper token" }).trim(),
     otp: z.string({
         invalid_type_error: "Must be a proper string",
         required_error: "OTP is required"
@@ -39,7 +39,6 @@ export const forgetPasswordZodSchema = z.object({
 })
 
 export const resetPasswordZodSchema = z.object({
-    email: z.string().trim().email("Invalid email format"),
     token: z.string({
         required_error: "Token is required",
         invalid_type_error: "Must be a proper token"

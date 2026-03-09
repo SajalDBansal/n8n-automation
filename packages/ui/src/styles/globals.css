@@ -2,6 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@layer base {
+    @import "@xyflow/react/dist/style.css";
+}
+
 @custom-variant dark (&:is(.dark *));
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../../../components/**/*.{ts,tsx}";
@@ -48,6 +52,19 @@
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
     --font-sans: var(--font-sans);
+    --animate-spotlight: spotlight 2s ease .75s 1 forwards;
+
+    @keyframes spotlight {
+        0% {
+            opacity: 0;
+            transform: translate(-72%, -62%) scale(0.5);
+        }
+
+        100% {
+            opacity: 1;
+            transform: translate(-50%, -40%) scale(1);
+        }
+    }
 }
 
 :root {
@@ -120,10 +137,11 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+    * {
+        @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground;
+
+    body {
+        @apply bg-background text-foreground;
     }
 }

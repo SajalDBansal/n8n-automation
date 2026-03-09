@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     return Response.json({
         success: true,
         message: "Password reset link sent successfully",
-        resetLink
+        resetLink: passwordResetToken // Include the reset link in the response for testing purposes, remove in production
     }, { status: 200 });
 
 }

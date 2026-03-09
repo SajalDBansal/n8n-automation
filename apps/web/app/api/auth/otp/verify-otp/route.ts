@@ -1,6 +1,7 @@
+import config from "@/utils/config";
 import { normalizeString } from "@/utils/string-normalize";
 import prisma from "@workspace/database";
-import { verifyOTPZodSchema } from "@workspace/validators"
+import { verifyJWT, verifyOTPZodSchema } from "@workspace/validators"
 import bcrypt from "bcrypt";
 
 export async function POST(request: Request) {
@@ -16,11 +17,20 @@ export async function POST(request: Request) {
         }, { status: 400 });
     }
 
-    const { email: userEmail, otp } = validateData.data;
+    const { token, otp } = validateData.data;
 
-    const email = normalizeString(userEmail);
+    const verifyToken = verifyJWT(token, config.JWT_OTP_SECRET);
 
-    const pendingUser = await prisma.pendingUser.findUnique({ where: { email } });
+    if (!verifyToken.success || !verifyToken.data) {
+        return Response.json({
+            success: false,
+            message: "Invalid or expired token",
+        }, { status: 400 });
+    }
+
+    const { id: userId } = verifyToken.data;
+
+    const pendingUser = await prisma.pendingUser.findUnique({ where: { id: userId } });
 
     if (!pendingUser) {
         return Response.json({
@@ -47,7 +57,7 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.create({
         data: {
-            email,
+            email: pendingUser.email,
             userName: pendingUser.userName,
             passwordHash: pendingUser.passwordHash,
             isEmailVerified: true,
@@ -58,7 +68,7 @@ export async function POST(request: Request) {
         }
     });
 
-    await prisma.pendingUser.delete({ where: { email } });
+    await prisma.pendingUser.delete({ where: { id: userId } });
 
     return Response.json({
         success: true,

@@ -43,7 +43,9 @@ const retry = async <T>(
     try {
         return await fn();
     } catch (error) {
-        if (retries <= 0) throw error;
+        if (retries <= 0) {
+            return Promise.reject(error instanceof Error ? error.message : String(error)) as unknown as T;
+        };
 
         console.warn(`Retrying... attempts left: ${retries}`);
         await new Promise((res) => setTimeout(res, delay));
@@ -86,7 +88,9 @@ export const sendEmail = async (
         };
     } catch (error) {
         console.error("❌ Failed to send email", error);
-
-        throw new Error("Failed to send email");
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+        };
     }
 };

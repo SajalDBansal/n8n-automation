@@ -1,6 +1,6 @@
 import type { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { loginZodSchema } from "@workspace/validators";
+import { signinZodSchema } from "@workspace/validators";
 import { normalizeString } from "@/utils/string-normalize";
 import prisma from "@workspace/database";
 import bcrypt from "bcrypt";
@@ -23,7 +23,7 @@ export const authOptions: AuthOptions = {
                     throw new Error("Email and password are required");
                 }
 
-                const validateData = loginZodSchema.safeParse({
+                const validateData = signinZodSchema.safeParse({
                     email: credentials.email,
                     password: credentials.password
                 });

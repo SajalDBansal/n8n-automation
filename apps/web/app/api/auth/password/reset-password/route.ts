@@ -1,7 +1,7 @@
 import config from "@/utils/config";
 import { normalizeString } from "@/utils/string-normalize";
 import prisma from "@workspace/database";
-import { resetPasswordZodSchema, verifyPasswordJWT } from "@workspace/validators";
+import { resetPasswordZodSchema, verifyJWT } from "@workspace/validators";
 import bcrypt from "bcrypt";
 
 export async function POST(request: Request) {
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     const { token, password } = validateData.data;
 
-    const verifyToken = verifyPasswordJWT(token, config.JWT_FORGET_PASSWORD_SECRET);
+    const verifyToken = verifyJWT(token, config.JWT_FORGET_PASSWORD_SECRET);
 
     if (!verifyToken.success || !verifyToken.data) {
         return Response.json({

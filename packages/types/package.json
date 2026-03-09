@@ -5,6 +5,7 @@
   "main": "index.js",
   "types": "index.ts",
   "dependencies": {
-    "@workspace/validators": "workspace:*"
+    "@workspace/validators": "workspace:*",
+    "zod": "^3.25.76"
   }
 }

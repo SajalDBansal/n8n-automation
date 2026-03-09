@@ -12,8 +12,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@workspace/ui": "workspace:*",
+    "@xyflow/react": "^12.10.2",
     "bcrypt": "^6.0.0",
+    "framer-motion": "^12.38.0",
+    "input-otp": "^1.4.2",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.8.0",
     "next": "16.1.6",
@@ -22,7 +26,9 @@
     "nodemailer": "^8.0.5",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "zod": "^4.3.6"
+    "react-hook-form": "^7.72.1",
+    "sonner": "^2.0.7",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",

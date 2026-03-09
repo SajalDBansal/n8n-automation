@@ -1,21 +1,24 @@
-import prisma from "@workspace/database"
-import { Button } from "@workspace/ui/components/button"
+import CTASection from "@/components/module/marketing/main/cta-section"
+import FeaturesSection from "@/components/module/marketing/main/feature-section"
+import HeroSection from "@/components/module/marketing/main/hero-section"
+import InteractiveDemoSection from "@/components/module/marketing/main/interactive-section"
+import PriceSection from "@/components/module/marketing/main/price-section"
+import TestimonySection from "@/components/module/marketing/main/testimony-section"
+import TrustedBySection from "@/components/module/marketing/main/trustedby-section"
+import WorkSection from "@/components/module/marketing/main/work-section"
 
 export default async function Page() {
 
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="text-muted-foreground font-mono text-xs">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
+    <div className="flex flex-col items-center w-full">
+      <HeroSection />
+      <TrustedBySection />
+      <FeaturesSection />
+      <InteractiveDemoSection />
+      <WorkSection />
+      <TestimonySection />
+      <PriceSection />
+      <CTASection />
     </div>
   )
 }

@@ -6,8 +6,9 @@ import config from "@/utils/config";
 import { generateOTP } from "@/utils/generate-otp";
 import { getOtpMailHtml } from "@/utils/mail-html";
 import { sendEmail } from "@/lib/mail";
+import jwt from "jsonwebtoken";
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
     const body = await request.json();
 
     const validateData = registerZodSchema.safeParse(body);
@@ -61,6 +62,8 @@ export async function GET(request: Request) {
         }
     });
 
+    const otpResetToken = jwt.sign({ id: user.id }, config.JWT_OTP_SECRET, { expiresIn: "1h" });
+
     const OTP_EMAIL_TEMPLATE = getOtpMailHtml(otp);
 
     await sendEmail(email, "OTP for Email Verification", `Your OTP code is ${otp}`, OTP_EMAIL_TEMPLATE);
@@ -68,6 +71,8 @@ export async function GET(request: Request) {
     return Response.json({
         success: true,
         message: "OTP send for verification successfully",
+        otp: otp, // For testing purposes, remove this in production
+        otpResetToken,
         data: user
     }, { status: 200 })
 }
