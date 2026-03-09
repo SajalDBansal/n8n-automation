@@ -1,0 +1,191 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                       String    @id @default(uuid())
+  userName                 String
+  email                    String    @unique
+  avatarUrl                String?
+  passwordHash             String
+  isEmailVerified          Boolean   @default(false)
+  isArchived               Boolean   @default(false)
+  passwordResetTokenHash   String?
+  passwordResetTokenExpiry DateTime?
+  createAt                 DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  projects                 Project[]
+
+  @@index([id])
+  @@index([email])
+}
+
+model PendingUser {
+  id           String   @id @default(uuid())
+  userName     String
+  email        String   @unique
+  passwordHash String
+  otpHash      String
+  otpExpiry    DateTime
+  createAt     DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([id])
+  @@index([email])
+}
+
+enum ProjectType {
+  PERSONAL
+  TEAM
+}
+
+model Project {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  type        ProjectType @default(PERSONAL)
+  userId      String
+  icon        Json? // Store icon as JSON (e.g., { "type": "emoji" | "image", "value": string }
+  createAt    DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id])
+  workflows   Workflow[]
+  credentials Credential[]
+
+  @@index([id])
+  @@index([userId])
+}
+
+model Workflow {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  projectId   String
+  active      Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  createAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project    Project     @relation(fields: [projectId], references: [id])
+  nodes      Node[]
+  edges      Edge[]
+  executions Execution[]
+  webhooks   webhook[]
+
+  @@index([id])
+  @@index([projectId])
+}
+
+model Node {
+  id           String  @id @default(uuid())
+  name         String
+  type         String
+  description  String?
+  parameters   Json
+  positionX    Float
+  positionY    Float
+  data         Json?
+  workflowId   String
+  credentialId String?
+
+  createAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workflow   Workflow    @relation(fields: [workflowId], references: [id])
+  credential Credential? @relation(fields: [credentialId], references: [id])
+
+  outEdges Edge[] @relation("SourceNode")
+  inEdges  Edge[] @relation("TargetNode")
+
+  @@index([id])
+  @@index([workflowId])
+}
+
+model Edge {
+  id           String   @id @default(uuid())
+  source       String
+  target       String
+  workflowId   String
+  sourceHandle String?
+  targetHandle String?
+  createAt     DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workflow   Workflow @relation(fields: [workflowId], references: [id])
+  sourceNode Node     @relation("SourceNode", fields: [source], references: [id])
+  targetNode Node     @relation("TargetNode", fields: [target], references: [id])
+
+  @@index([id])
+  @@index([workflowId])
+}
+
+model Credential {
+  id        String   @id @default(uuid())
+  name      String
+  type      String
+  data      Json
+  projectId String
+  createAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id])
+  nodes   Node[]
+
+  @@index([id])
+  @@index([projectId])
+}
+
+enum ExecutionStatus {
+  CANCELLED
+  CRASHED
+  ERROR
+  STARTING
+  SUCCESS
+  RUNNING
+  // WAITING
+  // RETRYING
+}
+
+model Execution {
+  id         String          @id @default(uuid())
+  workflowId String
+  status     ExecutionStatus @default(STARTING)
+  isFinished Boolean         @default(false)
+  result     Json?
+  data       Json?
+  createAt   DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  stoppedAt  DateTime?
+
+  workflow Workflow @relation(fields: [workflowId], references: [id])
+
+  @@index([id])
+  @@index([workflowId])
+}
+
+model webhook {
+  id      String  @id @default(uuid())
+  url     String
+  method  String?
+  headers Json?
+  body    Json?
+
+  workflowId String
+  createAt   DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  workflow Workflow @relation(fields: [workflowId], references: [id])
+
+  @@index([id])
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@workspace/validators",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "types": "index.ts",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10"
+  }
+}
