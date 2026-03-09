@@ -17,6 +17,7 @@ import { toast } from "sonner";
 
 export default function SendOTPPage() {
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
     const form = useForm<SendOtpFormValues>({
@@ -29,6 +30,7 @@ export default function SendOTPPage() {
     async function onSubmit(data: SendOtpFormValues) {
         try {
             setIsLoading(true);
+            setError(null);
 
             const response = await fetch("/api/auth/password/forgot-password", {
                 method: "POST",
@@ -42,6 +44,7 @@ export default function SendOTPPage() {
 
             if (!response.ok || !result.success) {
                 console.error(result.message);
+                setError(result.message);
                 return;
             }
 
@@ -61,6 +64,7 @@ export default function SendOTPPage() {
     return (
         <AuthCard
             title="Reset your password"
+            error={error != null ? error : ""}
             description="Enter your email to receive a verification code"
             footer={
                 <div className="w-full text-center text-sm text-muted-foreground mt-4">

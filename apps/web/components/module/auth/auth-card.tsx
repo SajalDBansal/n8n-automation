@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 interface AuthCardProps {
     title: string;
     description?: string;
+    error?: string;
     children: ReactNode;
     footer?: ReactNode;
     className?: string;
@@ -16,6 +17,7 @@ interface AuthCardProps {
 export function AuthCard({
     title,
     description,
+    error,
     children,
     footer,
     className,
@@ -38,6 +40,14 @@ export function AuthCard({
                             {description}
                         </CardDescription>
                     )}
+                    <div className="flex items-center justify-center py-1 ">
+                        {error && (
+                            <CardDescription className="text-red-500">
+                                {error}
+                            </CardDescription>
+                        )}
+                    </div>
+
                 </CardHeader>
                 <CardContent>{children}</CardContent>
                 {footer && <CardFooter>{footer}</CardFooter>}

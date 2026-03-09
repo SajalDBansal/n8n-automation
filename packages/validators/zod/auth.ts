@@ -17,9 +17,7 @@ export const registerZodSchema = z.object({
 
 export const signinZodSchema = z.object({
     email: z.string().trim().email("Invalid email format"),
-    password: z.string().min(8)
-        .regex(/[A-Z]/, "Must include uppercase letter")
-        .regex(/[0-9]/, "Must include a number"),
+    password: z.string()
 })
 
 export const verifyOTPZodSchema = z.object({

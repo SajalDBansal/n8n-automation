@@ -88,6 +88,20 @@
         "typescript-eslint": "^8.54.0",
       },
     },
+    "packages/execution-core": {
+      "name": "@workspace/execution-core",
+      "dependencies": {
+        "@workspace/database": "workspace:*",
+        "@workspace/types": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+        "@workspace/typescript-config": "workspace:*",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
     "packages/types": {
       "name": "@workspace/types",
       "version": "1.0.0",
@@ -714,6 +728,8 @@
     "@workspace/database": ["@workspace/database@workspace:packages/database"],
 
     "@workspace/eslint-config": ["@workspace/eslint-config@workspace:packages/eslint-config"],
+
+    "@workspace/execution-core": ["@workspace/execution-core@workspace:packages/execution-core"],
 
     "@workspace/types": ["@workspace/types@workspace:packages/types"],
 

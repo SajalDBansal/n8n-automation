@@ -23,6 +23,7 @@ export default function VerifyOTPPage() {
     const searchParams = useSearchParams();
     const email = searchParams.get("email") || "your email";
     const otp = searchParams.get("otp") || "------";
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         toast.success(`Your login OTP is ${otp}`, {
@@ -56,6 +57,7 @@ export default function VerifyOTPPage() {
 
         try {
             setIsLoading(true);
+            setError(null);
 
             const response = await fetch("/api/auth/otp/verify-otp", {
                 method: "POST",
@@ -69,6 +71,7 @@ export default function VerifyOTPPage() {
 
             if (!response.ok || !result.success) {
                 console.log(result.message);
+                setError(result.message);
                 return;
             }
 
@@ -86,6 +89,7 @@ export default function VerifyOTPPage() {
     return (
         <AuthCard
             title="Verify your email"
+            error={error != null ? error : ""}
             description={`We sent a verification code to ${email}`}
         >
             <Form {...form}>

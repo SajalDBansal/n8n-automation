@@ -15,10 +15,12 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@workspace/ui/c
 import { Input } from "@workspace/ui/components/input";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { error } from "node:console";
 
 export default function signinPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false)
+    const [showError, setShowError] = useState(false);
     const router = useRouter();
 
     const form = useForm<SigninFormValues>({
@@ -32,21 +34,23 @@ export default function signinPage() {
     async function onSubmit(data: SigninFormValues) {
         try {
             setIsLoading(true);
+            setShowError(false);
 
             const response = await signIn("credentials", {
                 ...data, redirect: false
             })
 
-            if (!response || response?.error) {
-                console.error("Login Failed", response?.error);
+            if (!response || response.error) {
+                setShowError(true);
+                return;
             }
 
             router.replace(`/dashboard`)
 
         } catch (error) {
             console.log(error);
+            setShowError(true);
         } finally {
-
             setIsLoading(false);
         }
 
@@ -55,6 +59,7 @@ export default function signinPage() {
         <AuthCard
             title="Welcome back"
             description="Enter your credentials to access your account"
+            error={showError ? "Invalid Credentials" : ""}
             footer={
                 <div className="w-full text-center text-sm text-muted-foreground mt-1">
                     Don&apos;t have an account?{" "}

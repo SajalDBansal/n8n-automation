@@ -36,12 +36,14 @@ export default function SignupPage() {
             userName: "",
             email: "",
             password: "",
+            confirmPassword: ""
         },
     });
 
     async function onSubmit(data: RegisterFormValues) {
         try {
             setIsLoading(true);
+            setError(null);
 
             const response = await fetch("/api/auth/register", {
                 method: "POST",
@@ -75,6 +77,7 @@ export default function SignupPage() {
         <AuthCard
             title="Create an account"
             description="Start automating your workflows today"
+            error={error != null ? error : ""}
             footer={
                 <div className="w-full text-center text-sm text-muted-foreground">
                     Already have an account?{" "}

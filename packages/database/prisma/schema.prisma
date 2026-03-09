@@ -13,7 +13,7 @@ datasource db {
 }
 
 model User {
-  id                       String    @id @default(uuid())
+  id                       String    @id @default(cuid())
   userName                 String
   email                    String    @unique
   avatarUrl                String?
@@ -31,7 +31,7 @@ model User {
 }
 
 model PendingUser {
-  id           String   @id @default(uuid())
+  id           String   @id @default(cuid())
   userName     String
   email        String   @unique
   passwordHash String
@@ -50,7 +50,7 @@ enum ProjectType {
 }
 
 model Project {
-  id          String      @id @default(uuid())
+  id          String      @id @default(cuid())
   name        String
   description String?
   type        ProjectType @default(PERSONAL)
@@ -68,7 +68,7 @@ model Project {
 }
 
 model Workflow {
-  id          String   @id @default(uuid())
+  id          String   @id @default(cuid())
   name        String
   description String?
   projectId   String
@@ -88,13 +88,13 @@ model Workflow {
 }
 
 model Node {
-  id           String  @id @default(uuid())
+  id           String  @id @default(cuid())
   name         String
   type         String
   description  String?
   parameters   Json
-  positionX    Float
-  positionY    Float
+  positionX    Int
+  positionY    Int
   data         Json?
   workflowId   String
   credentialId String?
@@ -113,7 +113,7 @@ model Node {
 }
 
 model Edge {
-  id           String   @id @default(uuid())
+  id           String   @id @default(cuid())
   source       String
   target       String
   workflowId   String
@@ -131,7 +131,7 @@ model Edge {
 }
 
 model Credential {
-  id        String   @id @default(uuid())
+  id        String   @id @default(cuid())
   name      String
   type      String
   data      Json
@@ -155,17 +155,19 @@ enum ExecutionStatus {
   RUNNING
   // WAITING
   // RETRYING
+  // NEW
+  // UNKNOWN
 }
 
 model Execution {
-  id         String          @id @default(uuid())
+  id         String          @id @default(cuid())
   workflowId String
   status     ExecutionStatus @default(STARTING)
   isFinished Boolean         @default(false)
   result     Json?
   data       Json?
   createAt   DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  startedAt  DateTime?
   stoppedAt  DateTime?
 
   workflow Workflow @relation(fields: [workflowId], references: [id])
@@ -175,7 +177,7 @@ model Execution {
 }
 
 model webhook {
-  id      String  @id @default(uuid())
+  id      String  @id @default(cuid())
   url     String
   method  String?
   headers Json?

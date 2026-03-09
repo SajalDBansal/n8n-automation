@@ -21,6 +21,7 @@ export default function ResetPasswordPage() {
     const { token }: { token: string } = useParams();
     const [isPasswordVisible, setIsPasswordVisible] = useState(false)
     const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false)
+    const [error, setError] = useState<string | null>(null);
 
     const form = useForm<ResetPasswordFormValues>({
         resolver: zodResolver(resetPasswordZodSchema),
@@ -34,6 +35,7 @@ export default function ResetPasswordPage() {
     async function onSubmit(data: ResetPasswordFormValues) {
         try {
             setIsLoading(true);
+            setError(null);
 
             const response = await fetch("/api/auth/password/reset-password", {
                 method: "POST",
@@ -47,6 +49,7 @@ export default function ResetPasswordPage() {
 
             if (!response.ok || !result.success) {
                 console.error(result.message);
+                setError(result.message);
                 return;
             }
 
@@ -63,6 +66,7 @@ export default function ResetPasswordPage() {
     return (
         <AuthCard
             title="Create new password"
+            error={error != null ? error : ""}
             description="Your new password must be different from previous used passwords."
         >
             <Form {...form}>
