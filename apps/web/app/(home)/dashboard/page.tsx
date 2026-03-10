@@ -1,7 +1,7 @@
 export default function DashboardPage() {
     return (
         <div>
-            Dashboard page
+            Dashboard page route : /dashboard
         </div>
     )
 }
