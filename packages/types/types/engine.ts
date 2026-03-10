@@ -7,7 +7,7 @@ export type Node = {
     postionX: number;
     positionY: number;
     parameters: Record<string, any>;
-    data: Record<string, any>;
+    data?: Record<string, any>;
     credentialId?: string
 }
 
@@ -15,8 +15,8 @@ export type Edge = {
     id: string;
     source: string;
     target: string;
-    sourceHandle: string;
-    targetHandle: string;
+    sourceHandle?: string;
+    targetHandle?: string;
 }
 
 export type ExecutionJob = {
