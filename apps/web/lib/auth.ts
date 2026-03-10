@@ -59,7 +59,7 @@ export const authOptions: AuthOptions = {
 
                 return {
                     id,
-                    userName,
+                    name: userName,
                     email,
                 };
             }

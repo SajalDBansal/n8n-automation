@@ -8,6 +8,7 @@ import { Spotlight } from "@workspace/ui/components/spotlight";
 import { ThemeToggle } from "@/components/theme-toggler";
 import { useSession } from "next-auth/react";
 import Loading from "../loading";
+import { useEffect } from "react";
 
 export default function AuthLayout({
     children,
@@ -18,13 +19,19 @@ export default function AuthLayout({
     const router = useRouter();
     const pathname = usePathname();
 
+    useEffect(() => {
+        if (status === "authenticated") {
+            router.push("/dashboard");
+        }
+    }, [status, router]);
+
+
     if (status === "loading") {
         return <Loading />;
     }
 
     if (status === "authenticated") {
-        router.push("/dashboard");
-        return null;
+        return null; // wait for redirect
     }
 
     return (
