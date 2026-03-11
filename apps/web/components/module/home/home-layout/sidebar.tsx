@@ -24,6 +24,7 @@ import Link from "next/link"
 import { NavUser } from "./sidebar-user"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { ProjectNavigatorType } from "@workspace/types"
 
 const iconMap = {
     layers: Layers
@@ -56,19 +57,7 @@ const navigationData = [
     }
 ];
 
-type ProjectNavigatorType = {
-    id: string;
-    name: string;
-    type: string;
-    icon: {
-        type: string;
-        value: string;
-    };
-    workflows: {
-        name: string;
-        id: string;
-    }[];
-}
+
 
 const projectsData: ProjectNavigatorType[] = [
     {
@@ -120,9 +109,6 @@ export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sideb
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user) return null;
-
-    console.log(session);
-
 
     const normalizedUser = {
         id: session.user.id,

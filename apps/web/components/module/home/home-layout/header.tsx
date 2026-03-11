@@ -5,6 +5,7 @@ import { Separator } from "@workspace/ui/components/separator";
 import { SidebarTrigger } from "@workspace/ui/components/sidebar";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import SearchBar from "./search-bar";
 
 export default function AppHeader() {
     const pathname = usePathname()
@@ -60,7 +61,8 @@ export default function AppHeader() {
                     </BreadcrumbList>
                 </Breadcrumb>
             </div>
-            <div>
+            <div className="flex items-center justify-center gap-2">
+                <SearchBar />
                 <ThemeToggle />
             </div>
 
