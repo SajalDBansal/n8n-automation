@@ -12,12 +12,24 @@ export type StatsName = "totalWorkflows" | "totalExecutionsToday" | "activeProje
 
 export type OverviewStatsPageDataType = Record<StatsName, number>;
 
+export type ProjectOverviewStatsPageType = {
+    id: ProjectStatsName;
+    title: string;
+    description: string;
+    icon: LucideIcon;
+}
+
+export type ProjectStatsName = "totalWorkflows" | "totalExecutionsToday" | "activeCredentials" | "failedExecutionToday";
+
+export type ProjectOverviewStatsPageDataType =
+    { projectDetails: Partial<ProjectType> } & Record<ProjectStatsName, number>;
+
 export type ProjectNavigatorType = {
     id: string;
     name: string;
     type: string;
     icon: {
-        type: string;
+        type: "IMAGE" | "ICON";
         value: string;
     };
     workflows: {
@@ -31,7 +43,7 @@ export type ProjectType = {
     name: string;
     description?: string;
     type: "PERSONAL" | "TEAM",
-    icon?: { type: string, value: string } | null;
+    icon?: { type: "ICON" | "IMAGE", value: string } | null;
     userId: string;
     createdAt: string;
     updatedAt: string;
@@ -43,6 +55,8 @@ export type ProjectStoreType = {
     setProjects: (projects: ProjectType[]) => void;
     updateProject: (projectId: string, updates: Partial<ProjectType>) => void;
     addProjects: (project: ProjectType) => void;
+    deleteProject: (projectId: string) => void;
+    addWorkflow: (projectId: string, workflow: { id: string, name: string }) => void;
 }
 
 export type WorkflowType = {

@@ -1,10 +1,5 @@
 import * as React from "react"
-import { ChevronRight, File, Folder, Layers, LayoutDashboard, LockKeyhole, LucideIcon, Plus, Settings, Waypoints, Workflow } from "lucide-react"
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from "@workspace/ui/components/collapsible"
+import { Layers, LayoutDashboard, LockKeyhole, Plus, Settings, Waypoints } from "lucide-react"
 import {
     Sidebar,
     SidebarContent,
@@ -14,21 +9,15 @@ import {
     SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
-    SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarMenuSub,
     SidebarRail,
 } from "@workspace/ui/components/sidebar"
 import Link from "next/link"
 import { NavUser } from "./sidebar-user"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
-import { ProjectNavigatorType } from "@workspace/types"
-
-const iconMap = {
-    layers: Layers
-}
+import ProjectsList from "./projects-list"
 
 const navigationData = [
     {
@@ -56,54 +45,6 @@ const navigationData = [
         icon: Settings
     }
 ];
-
-
-
-const projectsData: ProjectNavigatorType[] = [
-    {
-        id: "project-1",
-        name: "My Project",
-        type: "PERSONAL",
-        icon: { type: "icon", value: "layers" },
-        workflows: [
-            { name: "New Workflow", id: "workflow-1" },
-            { name: "New Workflow", id: "workflow-2" }
-        ]
-    },
-    {
-        id: "project-2",
-        name: "My Project",
-        type: "PERSONAL",
-        icon: { type: "icon", value: "layers" },
-        workflows: [
-            { name: "New Workflow", id: "workflow-3" },
-            { name: "New Workflow", id: "workflow-4" }
-        ]
-    },
-    {
-        id: "project-3",
-        name: "My Project",
-        type: "PERSONAL",
-        icon: { type: "icon", value: "layers" },
-        workflows: [
-            { name: "New Workflow", id: "workflow-3" }
-        ]
-    },
-    {
-        id: "project-4",
-        name: "My Project",
-        type: "PERSONAL",
-        icon: { type: "icon", value: "layers" },
-        workflows: []
-    },
-    {
-        id: "project-5",
-        name: "My Project",
-        type: "PERSONAL",
-        icon: { type: "icon", value: "layers" },
-        workflows: []
-    }
-]
 
 export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const session = await getServerSession(authOptions);
@@ -157,17 +98,7 @@ export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sideb
                 <SidebarGroup>
                     <SidebarGroupLabel>Files</SidebarGroupLabel>
                     <SidebarGroupContent>
-                        <SidebarMenu>
-                            {projectsData.map((item) => (
-                                <Tree key={item.id} item={item} />
-                            ))}
-                            <SidebarMenuItem >
-                                <SidebarMenuButton>
-                                    <Plus />
-                                    Add Project
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        </SidebarMenu>
+                        <ProjectsList />
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
@@ -179,50 +110,4 @@ export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sideb
     )
 }
 
-function Tree({ item }: { item: ProjectNavigatorType }) {
-    const Icon = item.icon.type === "icon" ? iconMap[item.icon.value as keyof typeof iconMap] ?? Layers : Layers;
 
-    return (
-        <SidebarMenuItem>
-            <Collapsible
-                className="group/collapsible [&[data-state=open]>button>svg:first-child]:rotate-90"
-            >
-                <CollapsibleTrigger asChild>
-                    <SidebarMenuButton>
-                        <ChevronRight className="transition-transform" />
-                        {
-                            item.icon.type === "icon" && (
-                                <Icon />
-                            )
-                        }
-                        {item.name}
-                    </SidebarMenuButton>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                    <SidebarMenuSub>
-                        {
-                            item.workflows.length > 0 && (
-                                item.workflows.map((flow) =>
-                                    <Link key={flow.id} href={`/projects/${item.id}/workflows/${flow.id}`}>
-                                        <SidebarMenuButton className="data-[active=true]:bg-transparent"
-                                        >
-                                            <Workflow />
-                                            {flow.name}
-                                        </SidebarMenuButton>
-                                    </Link>
-                                )
-                            )
-                        }
-
-                        <SidebarMenuButton className="data-[active=true]:bg-transparent text-muted-foreground"
-                        >
-                            <Plus />
-                            New Workflow
-                        </SidebarMenuButton>
-
-                    </SidebarMenuSub>
-                </CollapsibleContent>
-            </Collapsible>
-        </SidebarMenuItem>
-    )
-}

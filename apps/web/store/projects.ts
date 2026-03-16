@@ -8,14 +8,28 @@ export const useProjectStore = create<ProjectStoreType>((set) => ({
 
     updateProject: (projectId, updates) =>
         set((state) => ({
-            projects: state.projects?.map((project) =>
+            projects: state.projects ? state.projects.map((project) =>
                 project.id === projectId ? {
                     ...project, ...updates, updatedAt: new Date().toISOString()
-                } : project) || null,
+                } : project) : null
         }))
     ,
 
     addProjects: (project) => set((state) => ({
         projects: [...(state.projects || []), project]
+    })),
+
+    deleteProject: (projectId) => set((state) => ({
+        projects: state.projects ? state.projects.filter((project) =>
+            project.id === projectId ? (
+                project.workflows && project.workflows.length > 0
+            ) : true) : null
+    })),
+
+    addWorkflow: (projectId, workflow) => set((state) => ({
+        projects: state.projects ? state.projects.map((project) =>
+            project.id === projectId ? {
+                ...project, workflows: [...project.workflows || [], workflow], updatedAt: new Date().toISOString()
+            } : project) : null
     }))
 }))

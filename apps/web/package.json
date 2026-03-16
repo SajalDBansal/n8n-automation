@@ -13,8 +13,10 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@paralleldrive/cuid2": "^3.3.0",
     "@workspace/ui": "workspace:*",
     "@xyflow/react": "^12.10.2",
+    "axios": "^1.15.0",
     "bcrypt": "^6.0.0",
     "framer-motion": "^12.38.0",
     "input-otp": "^1.4.2",
