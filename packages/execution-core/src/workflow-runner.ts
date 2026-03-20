@@ -77,7 +77,7 @@ export class WorkFlowRunner {
 
         try {
             // skipping the LMCHAT execution for Workflow ???
-            if (currentNode.name.includes("LMCHAT") || currentNode.type === "MODEL") {
+            if (currentNode.name === "lmChatModel" || currentNode.type === "CHAT_MODEL") {
                 console.info(`Skipping the model node ${currentNode.name} in the Execution Workflow`);
 
                 await this.publish({
@@ -125,19 +125,19 @@ export class WorkFlowRunner {
         // TODO :Understand Express resolver clearly
 
         switch (currentNode.name) {
-            case "MANUAL_TRIGGER":
+            case "manualTrigger":
 
                 break;
-            case "WEBHOOK":
+            case "webhook":
 
                 break;
-            case "AGENT":
+            case "agent":
 
                 break;
-            case "TELEGRAM":
+            case "telegram":
 
                 break;
-            case "RESEND":
+            case "resend":
 
                 break;
 

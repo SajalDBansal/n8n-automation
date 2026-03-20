@@ -1,5 +1,8 @@
 export type NodeType = "TRIGGER" | "AGENT" | "WEBHOOK" | "ACTION" | "CHAT_MODEL";
 
+export type NodeName = "webhook" | "telegram" | "resend" | "manualTrigger" | "lmChatModel" | "agent";
+
+
 export interface SupplyData {
     success: boolean;
     model?: any;

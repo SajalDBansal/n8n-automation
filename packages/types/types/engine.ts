@@ -1,9 +1,11 @@
-export type Nodename = "MANUAL_TRIGGER" | "WEBHOOK" | "AGENT" | "TELEGRAM" | "RESEND";
+import { NodeType, NodeName } from "./node";
+
+export type ExecutionStatusType = "CANCELLED" | "CRASHED" | "ERROR" | "STARTING" | "SUCCESS" | "RUNNING";
 
 export type Node = {
     id: string;
-    name: Nodename;
-    type: "WEBHOOK" | "TRIGGER" | "AGENT" | "MODEL";
+    name: NodeName;
+    type: NodeType;
     postionX: number;
     positionY: number;
     parameters: Record<string, any>;
@@ -48,7 +50,7 @@ export enum NodeStatus {
 }
 
 export type ExecutionStatusDataType = {
-    status: "CANCELLED" | "CRASHED" | "ERROR" | "STARTING" | "SUCCESS" | "RUNNING",
+    status: ExecutionStatusType,
     isFinished: boolean,
     startedAt?: Date,
     stoppedAt?: Date
@@ -56,7 +58,7 @@ export type ExecutionStatusDataType = {
 
 export type NodeExecutionBasePayload = {
     nodeId: string;
-    nodeName: Nodename;
+    nodeName: NodeName;
     executionId: string | null;
     workflowId: string | null;
 }

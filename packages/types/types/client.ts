@@ -1,5 +1,5 @@
 import { LucideIcon } from "lucide-react";
-import { Edge, Node } from "./engine";
+import { Edge, Node, ExecutionStatusType } from "./engine";
 
 export type OverviewStatsPageType = {
     id: StatsName;
@@ -105,7 +105,7 @@ export type WorkflowStoreType = {
     getInputsForNode: (nodeId: string) => Record<string, any>
 }
 
-export type ExecutionStatusType = "CANCELLED" | "CRASHED" | "ERROR" | "STARTING" | "SUCCESS" | "RUNNING"
+
 
 export type UseEcexutionsOptions = {
     projectId: string;
