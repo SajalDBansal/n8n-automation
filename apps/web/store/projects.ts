@@ -19,10 +19,10 @@ export const useProjectStore = create<ProjectStoreType>((set) => ({
         projects: [...(state.projects || []), project]
     })),
 
-    deleteProject: (projectId) => set((state) => ({
+    deleteProject: (projectId, force) => set((state) => ({
         projects: state.projects ? state.projects.filter((project) =>
             project.id === projectId ? (
-                project.workflows && project.workflows.length > 0
+                force ? false : project.workflows && project.workflows.length > 0
             ) : true) : null
     })),
 
@@ -30,6 +30,13 @@ export const useProjectStore = create<ProjectStoreType>((set) => ({
         projects: state.projects ? state.projects.map((project) =>
             project.id === projectId ? {
                 ...project, workflows: [...project.workflows || [], workflow], updatedAt: new Date().toISOString()
+            } : project) : null
+    })),
+
+    deleteWorkflow: (projectId, workflowId) => set((state) => ({
+        projects: state.projects ? state.projects.map((project) =>
+            project.id === projectId ? {
+                ...project, workflows: project.workflows ? project.workflows.filter((flow) => flow.id !== workflowId) : []
             } : project) : null
     }))
 }))

@@ -55,8 +55,9 @@ export type ProjectStoreType = {
     setProjects: (projects: ProjectType[]) => void;
     updateProject: (projectId: string, updates: Partial<ProjectType>) => void;
     addProjects: (project: ProjectType) => void;
-    deleteProject: (projectId: string) => void;
+    deleteProject: (projectId: string, force: boolean) => void;
     addWorkflow: (projectId: string, workflow: { id: string, name: string }) => void;
+    deleteWorkflow: (projectId: string, workflowId: string) => void;
 }
 
 export type WorkflowType = {
@@ -103,3 +104,73 @@ export type WorkflowStoreType = {
     getJsonOutputById: (nodeId: string) => any
     getInputsForNode: (nodeId: string) => Record<string, any>
 }
+
+export type ExecutionStatusType = "CANCELLED" | "CRASHED" | "ERROR" | "STARTING" | "SUCCESS" | "RUNNING"
+
+export type UseEcexutionsOptions = {
+    projectId: string;
+    limit?: number;
+    status?: string; //check if type can be set to ExecutionStatusType
+    workflowId?: string;
+    refreshInterval?: number;
+}
+
+export type ExecutionType = {
+    id: string;
+    workflowId: string | null;
+    workflowName: string;
+    status: ExecutionStatusType;
+    isFinished: boolean;
+    startedAt: string | null;
+    stoppedAt: string | null;
+    createdAt: string;
+    runtimeMs: number;
+    runtimeFormatted: string;
+}
+
+export type ExecutionResponseType = {
+    success: boolean,
+    message: string;
+    executions: ExecutionType[];
+    pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+        hasMore: boolean;
+    };
+    filters: {
+        status?: string;
+        workflowId?: string;
+    };
+}
+
+export type WorkflowsResponseType = {
+    project: {
+        id: string;
+        name: string;
+    }
+    id: string;
+    name: string;
+    description: string | null;
+    projectId: string;
+    active: boolean;
+    isArchived: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export type CredentialsPageReturnType = {
+    id: string;
+    name: string;
+    type: string; // avoid Prisma enum leakage
+    icon: any;
+    description: string | null,
+    credentials: {
+        id: string;
+        name: string;
+        type: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }[];
+};

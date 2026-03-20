@@ -7,6 +7,7 @@ import {
     CreditCard,
     LogOut,
     Sparkles,
+    UserRound,
 } from "lucide-react"
 
 import {
@@ -30,6 +31,7 @@ import {
     useSidebar,
 } from "@workspace/ui/components/sidebar"
 import { signOut } from "next-auth/react"
+import Link from "next/link"
 
 export function NavUser({
     user,
@@ -88,10 +90,12 @@ export function NavUser({
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuGroup>
-                            <DropdownMenuItem>
-                                <Sparkles className="text-muted-foreground mr-2" />
-                                Upgrade to Pro
-                            </DropdownMenuItem>
+                            <Link href={"/profile"}>
+                                <DropdownMenuItem>
+                                    <UserRound className="text-muted-foreground mr-2" />
+                                    Profile
+                                </DropdownMenuItem>
+                            </Link>
                         </DropdownMenuGroup>
                         <DropdownMenuSeparator />
                         <DropdownMenuGroup>

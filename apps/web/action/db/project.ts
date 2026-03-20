@@ -62,10 +62,10 @@ type deleteProjectByIDReturn = {
     error?: unknown,
 }
 
-export const deleteProjectByID = async (id: string): Promise<deleteProjectByIDReturn> => {
+export const deleteProjectByID = async (id: string, force: boolean): Promise<deleteProjectByIDReturn> => {
 
     try {
-        const res = await axios.delete(`/api/projects/${id}`);
+        const res = await axios.delete(`/api/projects/${id}?force=${force}`);
 
         return {
             success: true,
@@ -79,3 +79,23 @@ export const deleteProjectByID = async (id: string): Promise<deleteProjectByIDRe
         }
     }
 };
+
+export const updateProjectById = async (projectId: string, data: Partial<ProjectType>): Promise<createProjectReturn> => {
+    try {
+        const res = await axios.patch(`/api/projects/${projectId}`, data);
+
+        const projectData = res.data.project;
+
+        return {
+            success: true,
+            message: "project created successfully",
+            projectData: projectData
+        }
+
+    } catch (error) {
+        return {
+            success: false,
+            error: error
+        }
+    }
+}

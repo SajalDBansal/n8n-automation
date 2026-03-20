@@ -11,7 +11,6 @@ export default function ProjectsList() {
     const { projects } = useProjectStore();
 
     useEffect(() => {
-        console.log("in effect");
 
         const run = async () => {
             await getAllProjectsOptimistic();

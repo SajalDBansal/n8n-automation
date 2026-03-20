@@ -79,6 +79,7 @@ export default function ProjectIdPage() {
                             transition={{ delay: i * 0.1, duration: 0.3 }}
                         >
                             <WorkflowCard
+                                projectId={wf.projectId}
                                 id={wf.id}
                                 name={wf.name}
                                 description={wf.description || ""}

@@ -8,12 +8,12 @@ import { AlertCircle, CheckCircle, Clock, FileQuestion, Loader, MoreHorizontal, 
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-export default function ProjectExecutionsPage() {
+export default function WorkflowExecutionsTable({ workflowId }: { workflowId: string }) {
     const [statusFilter, setStatusFilter] = useState<string>("");
     const loadMoreRef = useRef<HTMLDivElement>(null);
     const { projectId }: { projectId: string } = useParams();
 
-    const { executions, loading, loadingMore, error, hasMore, totalCount, loadMore } = useExecutions({ projectId, limit: 10, status: statusFilter || undefined, refreshInterval: 5000 })
+    const { executions, loading, loadingMore, error, hasMore, totalCount, loadMore } = useExecutions({ workflowId, projectId, limit: 10, status: statusFilter || undefined, refreshInterval: 5000 })
 
     useEffect(() => {
         if (!loadMoreRef.current || loading || loadingMore || !hasMore) return;

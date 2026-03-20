@@ -42,7 +42,7 @@ export default function Tree({ item }: { item: ProjectNavigatorType }) {
                         {
                             item.workflows.length > 0 && (
                                 item.workflows.map((flow) =>
-                                    <Link key={flow.id} href={`/projects/${item.id}/workflows/${flow.id}`}>
+                                    <Link key={flow.id} href={`/projects/${item.id}/${flow.id}`}>
                                         <SidebarMenuButton className="data-[active=true]:bg-transparent"
                                         >
                                             <Workflow />

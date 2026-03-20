@@ -65,6 +65,7 @@ model Project {
 
   @@index([id])
   @@index([userId])
+  @@index([id, userId])
 }
 
 model Workflow {
@@ -77,7 +78,7 @@ model Workflow {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  project    Project     @relation(fields: [projectId], references: [id])
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   nodes      Node[]
   edges      Edge[]
   executions Execution[]
@@ -102,7 +103,7 @@ model Node {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  workflow   Workflow    @relation(fields: [workflowId], references: [id])
+  workflow   Workflow    @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   credential Credential? @relation(fields: [credentialId], references: [id])
 
   outEdges Edge[] @relation("SourceNode")
@@ -122,9 +123,9 @@ model Edge {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  workflow   Workflow @relation(fields: [workflowId], references: [id])
-  sourceNode Node     @relation("SourceNode", fields: [source], references: [id])
-  targetNode Node     @relation("TargetNode", fields: [target], references: [id])
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  sourceNode Node     @relation("SourceNode", fields: [source], references: [id], onDelete: Cascade)
+  targetNode Node     @relation("TargetNode", fields: [target], references: [id], onDelete: Cascade)
 
   @@index([id])
   @@index([workflowId])
@@ -139,7 +140,7 @@ model Credential {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id])
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   nodes   Node[]
 
   @@index([id])
@@ -170,7 +171,7 @@ model Execution {
   startedAt  DateTime?
   stoppedAt  DateTime?
 
-  workflow Workflow @relation(fields: [workflowId], references: [id])
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
   @@index([id])
   @@index([workflowId])
@@ -187,7 +188,7 @@ model webhook {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  workflow Workflow @relation(fields: [workflowId], references: [id])
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
   @@index([id])
 }

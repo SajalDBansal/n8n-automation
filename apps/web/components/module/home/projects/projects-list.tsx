@@ -58,7 +58,7 @@ export default function ProjectsCard() {
             toast.error("Cannot delete project with workflows.");
             return;
         }
-        await deleteProjectOptimistic(id);
+        await deleteProjectOptimistic(id, false);
     }
 
     return (

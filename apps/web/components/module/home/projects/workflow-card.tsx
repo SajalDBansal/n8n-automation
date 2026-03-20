@@ -3,18 +3,20 @@ import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@workspace/ui/components/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@workspace/ui/components/dropdown-menu";
 import { motion } from "framer-motion";
-import { Clock, FolderOpen, MoreVertical, Pencil, Play, Settings, Trash2 } from "lucide-react";
+import { CircleCheck, Clock, FolderOpen, Hash, Layers, MoreVertical, Pause, Pencil, Play, Settings, Trash2, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
 interface WorkflowCardProps {
     id: string;
+    projectId: string;
     name: string;
     description?: string;
     isActive: boolean;
     updatedAt: Date;
+    projectName?: string
 }
 
-export function WorkflowCard({ id, name, description, isActive, updatedAt }: WorkflowCardProps) {
+export function WorkflowCard({ id, projectId, name, description, isActive, updatedAt, projectName }: WorkflowCardProps) {
     const formattedDate = new Date(updatedAt).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
@@ -32,7 +34,13 @@ export function WorkflowCard({ id, name, description, isActive, updatedAt }: Wor
 
                 <CardHeader className="flex flex-row items-start justify-between pb-2">
                     <div className="space-y-1">
-                        <h3 className="font-semibold text-base tracking-tight">{name}</h3>
+                        <div className="flex gap-3">
+                            <h3 className="font-semibold text-base tracking-tight">{name}</h3>
+                            <div className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-1 rounded-md border border-border/40">
+                                <Hash className="h-3 w-3" />
+                                <span className="truncate max-w-20">{id}</span>
+                            </div>
+                        </div>
                         {description && (
                             <p className="text-sm text-muted-foreground line-clamp-1">{description}</p>
                         )}
@@ -46,44 +54,52 @@ export function WorkflowCard({ id, name, description, isActive, updatedAt }: Wor
                             </div>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                            <Link href={`/projects/${id}/workflows/${id}`}>
+                            <Link href={`/projects/${projectId}/${id}`}>
                                 <DropdownMenuItem >
                                     <FolderOpen className="mr-2 h-4 w-4" />
                                     Open Workflow
                                 </DropdownMenuItem>
                             </Link>
-                            <Link href={`/projects/${id}/settings`}>
+                            <Link href={`/projects/${projectId}/${id}/edit`}>
                                 <DropdownMenuItem>
                                     <Pencil className="mr-2 h-4 w-4" />
-                                    Edit Details
+                                    Edit
                                 </DropdownMenuItem>
                             </Link>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                                className="text-destructive"
-                            >
-                                <Settings className="mr-2 h-4 w-4" />
-                                <span>Settings</span>
+                            <Link href={`/projects/${projectId}/${id}/settings`}>
+                                <DropdownMenuItem
+                                    className="text-destructive"
+                                >
+                                    <Settings className="mr-2 h-4 w-4" />
+                                    <span>Settings</span>
 
-                            </DropdownMenuItem>
+                                </DropdownMenuItem>
+                            </Link>
                         </DropdownMenuContent>
                     </DropdownMenu>
 
                 </CardHeader>
 
-                <CardContent className="flex-1 pb-4">
+                <CardContent className="flex-1 pb-4 flex gap-3 items-center ">
+
+                    {projectName && (
+                        <div className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-1 rounded-md border border-border/40">
+                            <Layers className="h-3 w-3" />
+                            <span>{projectName}</span>
+                        </div>
+                    )}
+
                     {isActive == true ? (
-                        <Badge variant="outline"
-                            className="font-medium bg-green-500/40 text-green-500 border-green-500/20"
-                        >
-                            Active
-                        </Badge>
+                        <div className="flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded-md border font-medium bg-green-500/40 text-green-500 border-green-500/20">
+                            <CircleCheck className="h-3 w-3" />
+                            <span className="truncate max-w-20">Active</span>
+                        </div>
                     ) : (
-                        <Badge variant="outline"
-                            className="font-medium bg-destructive/10 text-destructive border-destructive/20"
-                        >
-                            Inactive
-                        </Badge>
+                        <div className="flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded-md border  font-medium bg-destructive/10 text-destructive border-destructive/20">
+                            <TriangleAlert className="h-3 w-3" />
+                            <span className="truncate max-w-20">Inactive</span>
+                        </div>
                     )}
 
                 </CardContent>
@@ -93,7 +109,7 @@ export function WorkflowCard({ id, name, description, isActive, updatedAt }: Wor
                         <Clock className="h-3 w-3" />
                         <span>Last update: {formattedDate}</span>
                     </div>
-                    <Link href={`/workflows/${id}/edit`}>
+                    <Link href={`/projects/${projectId}/${id}/edit`}>
                         <Button variant="ghost" size="sm" className="h-8 gap-1 hover:text-primary transition-colors">
                             <Play className="h-3 w-3" />
                             Open
