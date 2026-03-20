@@ -1,0 +1,29 @@
+import type { NodeBaseProperties, NodeCredentialsType } from "@workspace/types";
+
+
+export class TelegramApi implements NodeCredentialsType {
+  name = "telegramApi";
+
+  displayName = "Telegram API";
+
+  documentationUrl = "telegram";
+
+  properties: NodeBaseProperties[] = [
+    {
+      displayName: "Access Token",
+      name: "accessToken",
+      type: "STRING",
+      typeOptions: { password: true },
+      default: "",
+      description:
+        'Chat with the <a href="https://telegram.me/botfather">bot father</a> to obtain the access token',
+    },
+    {
+      displayName: "Base URL",
+      name: "baseUrl",
+      type: "STRING",
+      default: "https://api.telegram.org",
+      description: "Base URL for Telegram Bot API",
+    },
+  ];
+}
