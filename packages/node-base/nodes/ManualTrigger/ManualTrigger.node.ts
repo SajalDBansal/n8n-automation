@@ -21,8 +21,7 @@ export class ManualTrigger implements NodeBaseType {
         maxNodes: 1,
         properties: [
             {
-                displayName:
-                    'This node is where the workflow execution starts',
+                displayName: 'This node is where the workflow execution starts',
                 name: "notice",
                 type: "NOTICE",
                 default: "",

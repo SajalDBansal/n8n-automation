@@ -29,6 +29,7 @@ export type ExecutionJob = {
 export type ExecutionRunTimeInput = {
     workflowId: string;
     executionId: string;
+    projectId: string;
     nodes: Node[];
     Edges: Edge[]
 }
@@ -56,9 +57,36 @@ export type ExecutionStatusDataType = {
     stoppedAt?: Date
 }
 
+export type NodeOutputDataType = {
+    [nodeId: string]: {
+        json: Record<string, unknown>;
+    }
+}
+
 export type NodeExecutionBasePayload = {
-    nodeId: string;
-    nodeName: NodeName;
+    nodeData?: {
+        nodeId: string;
+        nodeName: NodeName;
+        nodeStatus: NodeStatus;
+    }
     executionId: string | null;
     workflowId: string | null;
+    projectId: string | null;
+}
+
+export type PublishPayloadDataType = {
+    nodeData?: {
+        nodeId: string;
+        nodeName: NodeName;
+        nodeStatus: NodeStatus;
+    };
+    executionId: string | null;
+    workflowId: string | null;
+    projectId: string | null;
+    status: string;
+    message: string;
+    response?: Record<string, unknown>;
+    json?: Record<string, unknown>;
+    error?: string
+
 }

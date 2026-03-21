@@ -33,7 +33,10 @@ export class Agent implements NodeBaseType {
     async execute({
         parameters,
         model
-    }: any): Promise<{ success: boolean; data?: any; error?: string }> {
+    }: {
+        parameters: any;
+        model: any;
+    }): Promise<{ success: boolean; data?: any; error?: string }> {
 
         try {
 

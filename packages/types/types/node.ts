@@ -1,6 +1,6 @@
 export type NodeType = "TRIGGER" | "AGENT" | "WEBHOOK" | "ACTION" | "CHAT_MODEL";
 
-export type NodeName = "webhook" | "telegram" | "resend" | "manualTrigger" | "lmChatModel" | "agent";
+export type NodeName = "webhook" | "telegram" | "resend" | "manualTrigger" | "lmChatGoogleGemini" | "agent";
 
 
 export interface SupplyData {
@@ -34,7 +34,7 @@ export interface NodeCredentialDescription {
 
 export interface NodeBaseDescription {
     displayName: string;
-    name: string;
+    name: NodeName;
     description: string;
     version: number;
     icon?: NodeIconType;

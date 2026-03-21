@@ -7,7 +7,7 @@ export class LmChatGoogleGemini implements NodeBaseType {
     nodeType: NodeType = "CHAT_MODEL";
     description: NodeBaseDescription = {
         displayName: "Google Gemini Chat Model",
-        name: "lmChatModel",
+        name: "lmChatGoogleGemini",
         nodeType: "CHAT_MODEL",
         description: "Chat Model Google Gemini",
         version: 1,
@@ -82,15 +82,16 @@ export class LmChatGoogleGemini implements NodeBaseType {
         ],
     };
 
-    async supplyData(params: { parameters: any; credentialId: string; }): Promise<SupplyData> {
+    async supplyData(params: { parameters: any; credentialId: string; projectId: string }): Promise<SupplyData> {
         try {
-            const { parameters, credentialId } = params;
+            const { parameters, credentialId, projectId } = params;
             const { modelId } = parameters;
 
             if (!modelId) throw new Error("Model Id is required");
             if (!credentialId) throw new Error("Credentials Id is required");
+            if (!projectId) throw new Error("Project Id is required");
 
-            const credentials = await getCredentials<{ apiKey: string }>(credentialId);
+            const credentials = await getCredentials<{ apiKey: string }>(credentialId, projectId);
 
             if (!credentials?.apiKey) throw new Error("API Key not found");
 

@@ -81,7 +81,11 @@ export class Telegram implements NodeBaseType {
         parameters,
         projectId,
         credentialId,
-    }: any): Promise<{ success: boolean; data?: any; error?: string }> {
+    }: {
+        parameters: Record<string, unknown>;
+        projectId: string;
+        credentialId: string;
+    }): Promise<{ success: boolean; data?: any; error?: string }> {
         console.log("params -------> ", { parameters, projectId, credentialId });
 
         if (!parameters || !parameters.chatId || !parameters.text) {

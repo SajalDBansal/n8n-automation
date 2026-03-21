@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@workspace/database": "workspace:*",
-    "@workspace/types": "workspace:*"
+    "@workspace/types": "workspace:*",
+    "@workspace/node-base": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest",

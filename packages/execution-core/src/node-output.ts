@@ -1,4 +1,4 @@
-import { NodeOutput as NodeOutputType } from "@workspace/types";
+import { NodeOutputDataType, NodeOutput as NodeOutputType } from "@workspace/types";
 
 export class NodeOutput {
     json: NodeOutputType;
@@ -14,8 +14,8 @@ export class NodeOutput {
         this.json[nodeId] = { nodeName, json };
     }
 
-    getOutputForResolver(): Record<string, { json: Record<string, unknown> }> {
-        const outputs: Record<string, { json: Record<string, unknown> }> = {};
+    getOutputForResolver(): NodeOutputDataType {
+        const outputs: NodeOutputDataType = {};
 
         for (const [nodeId, data] of Object.entries(this.json)) {
             outputs[nodeId] = {

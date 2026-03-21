@@ -10,38 +10,42 @@ import { ResendApi } from "./credentials/ResendApi.credentials";
 import { TelegramApi } from "./credentials/TelegramApi.credentials";
 
 export const predefinedNodesStructure = {
-    "node-base.manualTrigger": {
+    manualTrigger: {
         type: new ManualTrigger(),
     },
-    "node-base.webhook": {
+    webhook: {
         type: new Webhook()
     },
-    "node-base.telegram": {
+    telegram: {
         type: new Telegram()
     },
-    "node-base.resend": {
+    resend: {
         type: new Resend()
     },
-    "node-base.agent": {
+    agent: {
         type: new Agent()
     },
-    "node-base.lmChatGoogleGemini": {
-        type: new LmChatGoogleGemini()
-    },
+    lmChatModels: [
+        {
+            name: "lmChatGoogleGemini",
+            type: new LmChatGoogleGemini()
+        },
+    ]
+
 }
 
 
 export const predefinedCredentialsStructure = {
-    "node-credentials.googleOAuth2": {
+    googleOAuth2: {
         type: new GmailOAuth2Api()
     },
-    "node-credentials.googleGemeni": {
+    lmChatGoogleGemini: {
         type: new GoogleGeminiApi()
     },
-    "node-credentials.resend": {
+    resend: {
         type: new ResendApi()
     },
-    "node-credentials.telegram": {
+    telegram: {
         type: new TelegramApi()
     },
 }
