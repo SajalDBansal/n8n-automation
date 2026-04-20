@@ -1,8 +1,9 @@
-import type { NodeBaseDescription, NodeBaseType, NodeType } from "@workspace/types";
+import type { NodeMetaData } from "@workspace/types";
 
-export class Webhook implements NodeBaseType {
-    nodeType: NodeType = "WEBHOOK";
-    description: NodeBaseDescription = {
+
+export const WebhookMetaData: NodeMetaData = {
+    nodeType: "WEBHOOK",
+    description: {
         displayName: "Webhook",
         name: "webhook",
         nodeType: "WEBHOOK",
@@ -63,5 +64,5 @@ export class Webhook implements NodeBaseType {
                     "The path to listen to, dynamic values could be specified by using ':', e.g. 'your-path/:dynamic-value'. If dynamic values are set 'webhookId' would be prepended to path.",
             },
         ],
-    };
+    }
 }

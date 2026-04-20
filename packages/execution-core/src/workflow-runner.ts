@@ -3,7 +3,7 @@ import { NodeOutput } from "./node-output.js";
 import { updateExecutionStatusInDB } from "./db-helper.js";
 import { constructErrorMessage } from "./error-provider.js";
 import { ExpressionResolver } from "./expression-resolver.js";
-import { predefinedNodesStructure } from "@workspace/node-base";
+import { predefinedNodesStructure } from "./execute-provider.js";
 
 export class WorkFlowRunner {
     workflowId: string | null = null;
@@ -215,6 +215,10 @@ export class WorkFlowRunner {
                     message: `Executing Agent Node: ${currentNode.name}`,
                 })
 
+                if (!agent.type.execute) {
+                    throw new Error("Agent node type does not have execute method");
+                }
+
                 const agentResponse = await agent.type.execute({
                     parameters: resolvedParameters,
                     model: suppliedModelResult.model
@@ -267,6 +271,10 @@ export class WorkFlowRunner {
                     );
                 }
 
+                if (!telegram.type.execute) {
+                    throw new Error("Telegram node type does not have execute method");
+                }
+
                 const telegramResponse = await telegram.type.execute({
                     parameters: resolvedParameters,
                     projectId: this.projectId!,
@@ -301,6 +309,10 @@ export class WorkFlowRunner {
 
                 if (!resend || !resend.type) {
                     throw new Error("Resend node type not found or not properly configured");
+                }
+
+                if (!resend.type.execute) {
+                    throw new Error("Resend node type does not have execute method");
                 }
 
                 const resendResponse = await resend.type.execute({
@@ -397,9 +409,18 @@ export class WorkFlowRunner {
         const modelNode = modelChild.node;
         const modelName = modelNode.name;
 
-        const lmChatModel = predefinedNodesStructure.lmChatModels.find((model) => model.name === modelName);
+        const lmChatModel = predefinedNodesStructure[modelName as keyof typeof predefinedNodesStructure] as any;
 
         if (!lmChatModel) {
+            return {
+                success: false,
+                model: null,
+                error: `Problem in node '${agentNode.name}'\n${modelName} is not a valid Chat Model node`,
+            }
+        }
+
+
+        if (!lmChatModel.type.supplyData) {
             return {
                 success: false,
                 model: null,

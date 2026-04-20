@@ -48,16 +48,6 @@ export default function CredentialsCards() {
         )
     }
 
-    const container = {
-        hidden: { opacity: 0 },
-        show: {
-            opacity: 1,
-            transition: {
-                staggerChildren: 0.1
-            }
-        }
-    }
-
     const item = {
         hidden: { opacity: 0, y: 20 },
         show: { opacity: 1, y: 0 }
@@ -65,15 +55,18 @@ export default function CredentialsCards() {
 
     return (
         <motion.div
-            variants={container}
-            initial="hidden"
-            animate="show"
-            className="flex flex-col gap-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ delay: 0.4, duration: 0.2 }}
+            className="flex flex-col gap-4 ml-4"
         >
             {projects.map((project) => (
                 <motion.div
                     key={project.id}
-                    variants={item}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1, duration: 0.3 }}
                 >
                     <CredentialsBlock project={project} />
                 </motion.div>

@@ -1,5 +1,6 @@
 import { LucideIcon } from "lucide-react";
 import { Edge, Node, ExecutionStatusType } from "./engine";
+import { NodeType } from "./node";
 
 export type OverviewStatsPageType = {
     id: StatsName;
@@ -106,7 +107,6 @@ export type WorkflowStoreType = {
 }
 
 
-
 export type UseEcexutionsOptions = {
     projectId: string;
     limit?: number;
@@ -174,3 +174,18 @@ export type CredentialsPageReturnType = {
         updatedAt: Date;
     }[];
 };
+
+
+export type WorkflowNodeData = Node & {
+    label: string;
+    executionStatus?: 'idle' | 'executing' | 'success' | 'failed';
+    nodeType?: NodeType;
+    properties?: Record<string, unknown>;
+    onDelete?: (nodeId: string) => void;
+    [key: string]: unknown;
+}
+
+export interface WorkflowNodeProps {
+    data: WorkflowNodeData;
+    id: string;
+}

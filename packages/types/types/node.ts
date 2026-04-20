@@ -6,16 +6,29 @@ export type NodeName = "webhook" | "telegram" | "resend" | "manualTrigger" | "lm
 export interface SupplyData {
     success: boolean;
     model?: any;
+    data?: any
     error?: string;
 }
 
-export interface NodeBaseType {
-    nodeType: NodeType
-    description: NodeBaseDescription;
+export type NodeBaseType = { type: NodeExecutionType & NodeMetaData; }
+
+export interface NodeExecutionType {
     supplyData?(params: {
         parameters: any;
         credentialId: string;
+        projectId: string
     }): Promise<SupplyData>;
+    execute?(params: {
+        parameters?: any;
+        credentialId?: string;
+        projectId?: string;
+        model?: any;
+    }): Promise<SupplyData>;
+}
+
+export interface NodeMetaData {
+    nodeType: NodeType
+    description: NodeBaseDescription;
 }
 
 type NodeGroupType = "INPUT" | "OUTPUT" | "TRIGGER" | "TRANSFORM" | "MODEL";

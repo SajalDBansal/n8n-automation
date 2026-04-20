@@ -1,8 +1,8 @@
-import type { NodeBaseDescription, NodeBaseType, NodeType } from "@workspace/types"
+import type { NodeMetaData } from "@workspace/types";
 
-export class ManualTrigger implements NodeBaseType {
-    nodeType: NodeType = "TRIGGER";
-    description: NodeBaseDescription = {
+export const ManualTriggerMetaData: NodeMetaData = {
+    nodeType: "TRIGGER",
+    description: {
         displayName: "Manual Trigger",
         name: "manualTrigger",
         nodeType: "TRIGGER",
@@ -27,5 +27,5 @@ export class ManualTrigger implements NodeBaseType {
                 default: "",
             },
         ],
-    };
+    }
 }

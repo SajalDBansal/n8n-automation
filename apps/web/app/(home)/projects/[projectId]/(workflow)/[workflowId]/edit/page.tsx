@@ -1,7 +1,11 @@
-export default function ProjectWorkflowEditPage() {
+import WorkflowEditor from "@/components/editor/workflow-editor";
+
+export default async function ProjectWorkflowEditPage({ params }: { params: Promise<{ projectId: string, workflowId: string }> }) {
+    const { workflowId, projectId } = await params;
     return (
-        <div>
-            Project Workflow Edit page route : /projects/"PROJECTID"/workflows/"WORKFLOWID"/edit
-        </div>
+        <WorkflowEditor
+            workflowId={workflowId}
+            projectId={projectId}
+        />
     )
 }
