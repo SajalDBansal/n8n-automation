@@ -1,7 +1,7 @@
 
 import prisma from "@workspace/database"
-import { ResendEmailService } from "./resend-function";
 import type { NodeExecutionType } from "@workspace/types";
+import { ResendEmailService } from "./resend-function.js";
 
 export const Resend: NodeExecutionType = {
     execute: async ({

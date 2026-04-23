@@ -4,6 +4,11 @@
   "private": true,
   "scripts": {
     "build": "turbo build",
+    "docker:start": "docker compose -f docker/docker-compose.dev.yml up -d",
+    "docker:stop": "docker compose -f docker/docker-compose.dev.yml down",
+    "docker:log": "docker compose -f docker/docker-compose.dev.yml logs -f",
+    "docker:rebuild": "docker compose -f docker/docker-compose.dev.yml up -d --build",
+    "local": "bun run docker:start && turbo dev",
     "dev": "turbo dev",
     "lint": "turbo lint",
     "format": "turbo format",

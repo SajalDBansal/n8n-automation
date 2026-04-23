@@ -33,9 +33,10 @@ export type Edge = {
     targetHandle?: string;
 }
 
-export type ExecutionJob = {
+export interface ExecutionJob {
     workflowId: string;
     executionId: string;
+    projectId: string;
 }
 
 export type ExecutionRunTimeInput = {
@@ -43,14 +44,14 @@ export type ExecutionRunTimeInput = {
     executionId: string;
     projectId: string;
     nodes: Node[];
-    Edges: Edge[]
+    edges: Edge[]
 }
 
 export type ExecutionEventPublisher = {
     publish(payload: Record<string, unknown>): Promise<void>;
 }
 
-export type ExecutionEngine = {
+export interface ExecutionEngine {
     execute(job: ExecutionJob): Promise<void>
 }
 

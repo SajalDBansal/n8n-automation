@@ -6,14 +6,9 @@
   "types": "index.ts",
   "devDependencies": {
     "@types/bun": "latest",
-    "@workspace/types": "workspace:*",
-    "@workspace/database": "workspace:*"
+    "@workspace/types": "workspace:*"
   },
   "peerDependencies": {
     "typescript": "^5"
-  },
-  "dependencies": {
-    "ai": "^6.0.168",
-    "resend": "^6.12.0"
   }
 }

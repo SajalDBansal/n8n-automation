@@ -19,7 +19,7 @@ export class WorkFlowRunner {
         this.executionId = input.executionId;
         this.projectId = input.projectId;
         this.nodes = input.nodes;
-        this.edges = input.Edges;
+        this.edges = input.edges;
         this.publisher = publisher;
         this.nodeOutputs = new NodeOutput();
     }

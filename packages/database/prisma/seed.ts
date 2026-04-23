@@ -2,7 +2,7 @@ import prisma from "..";
 
 
 async function seed() {
-    const userId = "cmo1q4s1t0001pkg1l8fliwpg";
+    const userId = "cmo8782sg0001l8g1db0028s7";
 
     // 1. Create Project
     const project = await prisma.project.create({

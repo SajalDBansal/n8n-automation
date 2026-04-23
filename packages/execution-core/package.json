@@ -10,8 +10,10 @@
   },
   "dependencies": {
     "@workspace/database": "workspace:*",
+    "@workspace/node-base": "workspace:*",
     "@workspace/types": "workspace:*",
-    "@workspace/node-base": "workspace:*"
+    "ai": "^6.0.168",
+    "resend": "^6.12.2"
   },
   "devDependencies": {
     "@types/bun": "latest",
