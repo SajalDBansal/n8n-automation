@@ -48,3 +48,24 @@ export function getNodeIcon(nodeType: NodeName): string | INodeIcon {
 export function getNodeDisplayName(nodeName: NodeName) {
     return PredefinedNodeMetaData[nodeName].description.displayName;
 }
+
+export function getTriggerNodeIcon(nodeName: NodeName): string | INodeIcon {
+    if (nodeName) {
+        const registryIcon = getNodeIcon(nodeName);
+        if (registryIcon) return registryIcon;
+    }
+    switch (nodeName) {
+        case 'telegram':
+            return { type: 'file' as const, value: 'telegram.svg' };
+        case 'resend':
+            return { type: 'url' as const, value: 'https://img.icons8.com/?size=100&id=nyD0PULzXd9Q&format=png&color=000000' };
+        case 'agent':
+            return { type: 'lucide' as const, value: 'Bot', color: 'purple' };
+        case 'manualTrigger':
+            return { type: 'file' as const, value: 'manualTrigger.svg' };
+        case 'webhook':
+            return { type: 'file' as const, value: 'webhook.svg' };
+        default:
+            return { type: 'lucide' as const, value: 'Zap', color: 'blue' };
+    }
+};

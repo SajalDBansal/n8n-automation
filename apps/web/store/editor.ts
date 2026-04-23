@@ -128,13 +128,13 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
                 projectId: projectId
             };
 
+            console.log(payload);
+
+
             const res = await axios.patch(
                 `/api/projects/${projectId}/workflow/${workflowId}/update`,
                 payload
             );
-
-            console.log(res);
-
 
             if (!res.data.success) {
                 set({ error: res.data.message });

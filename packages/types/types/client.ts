@@ -93,7 +93,7 @@ export type WorkflowStoreType = {
     addNode: (node: Node) => void;
     removeNode: (nodeId: string) => void;
     changeNodeProperty: (nodeId: string, key: string, value: string) => void;
-    nodeParameterChangeHandler: (key: string, value: string) => void;
+    nodeParameterChangeHandler: (key: string, value: string | number | boolean) => void;
 
     // edge operations
     addEdge: (edge: Edge) => void;

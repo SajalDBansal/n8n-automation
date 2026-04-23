@@ -11,6 +11,7 @@ export type Node = {
     position: { x: number, y: number }
     parameters: Record<string, any>;
     data: Record<string, any>;
+    description?: string;
     credentialId?: string
 }
 

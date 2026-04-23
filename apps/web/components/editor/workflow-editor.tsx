@@ -2,7 +2,7 @@
 import { useWorkflowEditor } from "@/store/editor";
 import { useWorkflowStore } from "@/store/workflow";
 import { nodeTypes } from "@/utils/node-types";
-import { Node, NodeName, NodeType, NodeTypeFromDB } from "@workspace/types";
+import { Node, NodeBaseProperties, NodeName, NodeType, NodeTypeFromDB } from "@workspace/types";
 import { Edge, Node as RFNode } from "@xyflow/react";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@workspace/ui/components/resizable";
 import { Background, Controls, IsValidConnection, MiniMap, ReactFlow, ReactFlowInstance } from "@xyflow/react";
@@ -13,6 +13,7 @@ import { Button } from "@workspace/ui/components/button";
 import EditorSidebar from "./editor-sidebar";
 import { getNodeMetadata } from "@/lib/node-registery";
 import { DeletableEdge } from "../custom-edge/deletable-edge";
+import NodeConfigDrawer from "./node-config-drawer";
 
 interface NodeExecutionState {
     [nodeId: string]: {
@@ -104,7 +105,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
     const [loadingWorkflow, setLoadingWorkflow] = useState(false);
     const [nodeExecutionStates, setNodeExecutionStates] = useState<NodeExecutionState>({});
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-    const [isNodeModalOpen, setIsNodeModalOpen] = useState(false);
+    const [isNodeConfigModelOpen, setIsNodeConfigModelOpen] = useState(false);
     const [executionLogs, setExecutionLogs] = useState<ExecutionMessage[]>([]);
     const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance<any, any>>()
     const [isSaving, setIsSaving] = useState(false);
@@ -197,6 +198,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
         return nodes.map((node) => ({
             ...node,
             data: {
+                ...node.data,
                 engine: { ...node },
                 executionStatus: nodeExecutionStates[node.id]?.status || 'idle',
                 onDelete: handleDeleteNode,
@@ -216,89 +218,13 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
     }, [edges, handleDeleteEdge]);
 
     const handleNodeDoubleClick = (event: React.MouseEvent, node: Node) => {
-        console.log(node);
-        console.log(nodes);
+        // console.log('executionLogs', executionLogs);
+        // console.log(nodes);
 
-        console.log('executionLogs', executionLogs);
         setSelectedNode(node);
         workflowStore.setSelectedNodeId(node.id)
-        setIsNodeModalOpen(true);
+        setIsNodeConfigModelOpen(true);
     };
-
-    // const isValidConnection: IsValidConnection = useCallback((conn) => {
-    //     const source = conn.source;
-    //     const target = conn.target;
-
-    //     // normalize null → undefined (important)
-    //     const sourceHandle = conn.sourceHandle ?? undefined;
-    //     const targetHandle = conn.targetHandle ?? undefined;
-
-    //     const sourceNode = nodes.find((n) => n.id === source);
-    //     const targetNode = nodes.find((n) => n.id === target);
-
-    //     if (!sourceNode || !targetNode) {
-    //         toast.error("Invalid connection: Source or target node not found");
-    //         return false;
-    //     }
-
-    //     const sourceEngineType: NodeType | undefined = (sourceNode as Node).type;
-    //     const targetEngineType: NodeType | undefined = (targetNode as Node).type;
-
-    //     if (targetEngineType === "CHAT_MODEL") {
-    //         if (sourceEngineType !== "AGENT") {
-    //             toast.error("Only Agent nodes can connect to Chat Model nodes");
-    //             return false;
-    //         }
-    //     }
-
-    //     // Agent → Model (bottom handles)
-    //     if (sourceEngineType === "AGENT" && sourceHandle) {
-    //         if (["chat-model", "memory", "tool"].includes(sourceHandle)) {
-    //             // type constraint
-    //             if (
-    //                 sourceHandle === "chat-model" &&
-    //                 targetEngineType !== "CHAT_MODEL"
-    //             ) {
-    //                 toast.error(
-    //                     "Chat Model handle can only connect to Model nodes"
-    //                 );
-    //                 return false;
-    //             }
-
-    //             // single connection per handle
-    //             const exists = edges.find(
-    //                 (e) =>
-    //                     e.source === source &&
-    //                     e.sourceHandle === sourceHandle
-    //             );
-
-    //             if (exists) {
-    //                 toast.error(
-    //                     `This ${sourceHandle} handle already has a connection`
-    //                 );
-    //                 return false;
-    //             }
-    //         }
-    //     }
-
-    //     // Model → Agent
-    //     if (targetEngineType === "AGENT" && targetHandle) {
-    //         if (["chat-model", "memory", "tool"].includes(targetHandle)) {
-    //             const exists = edges.find((e) => e.source === source);
-
-    //             if (exists) {
-    //                 toast.error(
-    //                     "This model node can only connect to one agent"
-    //                 );
-    //                 return false;
-    //             }
-    //         }
-    //     }
-
-    //     return true;
-    // },
-    //     [nodes, edges]
-    // );
 
     const isValidConnection: IsValidConnection = useCallback((conn) => {
         const { source, target } = conn;
@@ -406,16 +332,40 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
 
             const id = cuid();
 
+            const parameters: Record<string, unknown> = {};
+
+            if (nodeData.properties) {
+                Object.values(nodeData.properties).forEach((prop) => {
+                    const typedProp = prop as NodeBaseProperties
+                    parameters[typedProp.name] = typedProp.default;
+                })
+            }
+
+            if (nodeData.name === 'webhook') {
+                const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                parameters['path'] = `${origin}/api/projects/${projectId}/workflow/${workflowId}/webhook`;
+            }
+
             const newNode: Node = {
                 id,
-                name: nodeData.name,
-                type: nodeData.type,
                 position: { x: position.x, y: position.y },
-                parameters: {},
-                data: {},
+                name: nodeData.name,
+                description: nodeData.description,
+                type: nodeData.type,
+                parameters: parameters,
+                data: {
+                    label: nodeData.displayName,
+                    icon: nodeData.icon,
+                    nodeDescription: nodeData.description,
+                    nodeType: nodeData.type,
+                    category: nodeData.group?.[0] || 'default',
+                    credentials: nodeData.credentials,
+                    properties: nodeData.properties
+                },
                 credentialId: undefined,
             };
 
+            workflowStore.addNode(newNode);
             setNodes((prev) => [...prev, newNode]);
         } catch (error) {
             console.error("Failed to fetch node metadata:", error);
@@ -572,7 +522,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
     }
 
     const handleNodeModalClose = () => {
-        setIsNodeModalOpen(false);
+        setIsNodeConfigModelOpen(false);
         workflowStore.setSelectedNodeId(null)
         setSelectedNode(null);
     };
@@ -585,10 +535,8 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
 
             workflowStore.setNodes(updatedNodes);
 
-            // // Show success toast for node configuration save
-            // toast.success(`Node "${updatedNode.data.label || updatedNode.name}" configuration saved!`, {
-            //     duration: 3000,
-            // });
+            // Show success toast for node configuration save
+            toast.success(`Node "${updatedNode.name}" configuration saved!`);
 
             return updatedNodes;
         });
@@ -704,13 +652,17 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
                 </ResizablePanel>
             </ResizablePanelGroup>
 
-            {/* <NodeConfigModal
+
+            <NodeConfigDrawer
                 projectId={projectId}
                 node={selectedNode}
-                isOpen={isNodeModalOpen}
+                isOpen={isNodeConfigModelOpen}
                 onClose={handleNodeModalClose}
                 onSave={handleNodeSave}
-            /> */}
+            />
+
+
+
         </div>
     )
 }
