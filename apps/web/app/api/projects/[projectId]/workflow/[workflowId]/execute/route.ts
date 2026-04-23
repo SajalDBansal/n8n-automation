@@ -1,15 +1,13 @@
-import { getSubscriber } from "@/lib/redis";
 import { authOptions } from "@/lib/auth";
 import prisma from "@workspace/database";
 import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
-import {
-    getExecutionEngine,
-    isWorkerModeEnabled,
-} from "@/lib/execution/engines";
-import { subscribeExecutionEvents } from "@/lib/execution/events";
+import { getSubscriber } from "@/lib/redis-manager";
+import { getExecutionEngine, isWorkerModeEnabled } from "@/lib/execution/execution-engine";
+import { subscribeExecutionEvents } from "@/lib/execution/evevt-emitter";
 
-export const GET = async (req: NextRequest) => {
+export const GET = async (req: NextRequest, { params }: { params: Promise<{ workflowId: string, projectId: string }> }) => {
+    const { workflowId, projectId } = await params;
     console.log("Received request to execute workflow");
     try {
         const session = await getServerSession(authOptions);
@@ -19,11 +17,6 @@ export const GET = async (req: NextRequest) => {
                 status: 401,
             });
         }
-
-        const { searchParams } = new URL(req.url);
-
-        const workflowId = searchParams.get("workflowId");
-        console.log("workflowId", workflowId);
 
         if (!workflowId) {
             return new Response(JSON.stringify({ error: "workflowId is required" }), {
@@ -80,7 +73,7 @@ export const GET = async (req: NextRequest) => {
                                     userId: session.user.id,
                                 },
                             },
-                            include: { Node: true, Edge: true },
+                            include: { nodes: true, edges: true },
                         });
 
                         if (!workflow) {
@@ -91,10 +84,10 @@ export const GET = async (req: NextRequest) => {
                             data: {
                                 workflowId,
                                 data: {
-                                    nodes: workflow?.Node || [],
-                                    edges: workflow?.Edge || [],
+                                    nodes: workflow?.nodes || [],
+                                    edges: workflow?.edges || [],
                                 },
-                                status: "Starting",
+                                status: "STARTING",
                             },
                             select: {
                                 id: true,
@@ -153,6 +146,7 @@ export const GET = async (req: NextRequest) => {
                     await executionEngine.execute({
                         workflowId,
                         executionId,
+                        projectId
                     });
 
                     req.signal.addEventListener("abort", async () => {
