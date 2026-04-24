@@ -1,12 +1,11 @@
 import type { NodeBaseProperties, NodeCredentialsType } from "@workspace/types";
 
 
-export class GoogleGeminiApi implements NodeCredentialsType {
-  name = "googleGeminiApi";
-  displayName = "Google Gemini API";
-  documentationUrl = "https://ai.google.dev/docs";
-
-  properties: NodeBaseProperties[] = [
+export const GoogleGeminiApi: NodeCredentialsType = {
+  name: "googleGeminiApi",
+  displayName: "Google Gemini API",
+  documentationUrl: "https://ai.google.dev/docs",
+  properties: [
     {
       displayName: "API Key",
       name: "apiKey",
@@ -23,9 +22,9 @@ export class GoogleGeminiApi implements NodeCredentialsType {
       default: "https://generativelanguage.googleapis.com",
       description: "Base URL for Google Gemini API",
     },
-  ];
+  ],
 
-  async test() {
+  test: async () => {
     // #todo: here i would implement API key validation, which will check if the given key is valid or not
     return {
       status: "OK",

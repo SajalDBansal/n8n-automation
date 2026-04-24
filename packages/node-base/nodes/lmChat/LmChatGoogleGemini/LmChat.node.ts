@@ -34,44 +34,37 @@ export const LmChatGoogleGeminiMetaData: NodeMetaData = {
                     {
                         name: "gemini-2.5-flash",
                         value: "gemini-2.5-flash",
-                        description:
-                            "Stable version of Gemini 2.5 Flash, mid-size multimodal model with 1M context, June 2025 release.",
+                        // description:"Stable version of Gemini 2.5 Flash, mid-size multimodal model with 1M context, June 2025 release.",
                     },
                     {
                         name: "gemini-2.5-pro",
                         value: "gemini-2.5-pro",
-                        description:
-                            "Latest flagship Gemini 2.5 Pro model, state-of-the-art reasoning and multimodal support.",
+                        // description:"Latest flagship Gemini 2.5 Pro model, state-of-the-art reasoning and multimodal support.",
                     },
                     {
                         name: "gemini-2.0-flash-lite",
                         value: "gemini-2.0-flash-lite",
-                        description:
-                            "Lightweight, cost-efficient Gemini 2.0 Flash Lite model for fast inference.",
+                        // description:"Lightweight, cost-efficient Gemini 2.0 Flash Lite model for fast inference.",
                     },
                     {
                         name: "gemini-1.5-pro",
                         value: "gemini-1.5-pro",
-                        description:
-                            "Gemini 1.5 Pro with advanced reasoning and multimodal support, large context window.",
+                        // description:"Gemini 1.5 Pro with advanced reasoning and multimodal support, large context window.",
                     },
                     {
                         name: "gemini-1.5-flash",
                         value: "gemini-1.5-flash",
-                        description:
-                            "Gemini 1.5 Flash, optimized for speed and efficiency with long context.",
+                        // description:"Gemini 1.5 Flash, optimized for speed and efficiency with long context.",
                     },
                     {
                         name: "gemini-pro",
                         value: "gemini-pro",
-                        description:
-                            "Earlier Gemini Pro model, reliable for text-only generation.",
+                        // description:"Earlier Gemini Pro model, reliable for text-only generation.",
                     },
                     {
                         name: "gemini-flash",
                         value: "gemini-flash",
-                        description:
-                            "Earlier Gemini Flash model, fast inference, smaller context size.",
+                        // description:"Earlier Gemini Flash model, fast inference, smaller context size.",
                     },
                 ],
                 default: "gemini-2.5-flash",

@@ -78,18 +78,50 @@ export interface NodeBaseProperties {
     name: string;
     type: NodePropertyTypes;
     typeOptions?: { password?: true };
-    default: any;
+    default?: string | number | boolean;
     description?: string;
-    options?: any;
+    options?: PropertyOption[];
     placeholder?: string;
     noDataExpression?: boolean;
     required?: boolean;
 }
 
-export interface NodeCredentialsType {
-    name: string;
+export type NodeCredentialsName = "telegramApi" | "resendApi" | "gmailOAuth2Api" | "googleGeminiApi";
+
+export type NodeCredentialsType = {
+    name: NodeCredentialsName;
     displayName: string;
     documentationUrl?: string;
-    properties: NodeBaseProperties[]
+    properties: NodeBaseProperties[];
+    test?: () => void;
+}
 
+export interface CredentialRecord {
+    id: string;
+    name: string;
+    type: string;
+    data?: unknown;
+    projectId?: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
+export interface NodeBaseProperties {
+    name: string;
+    displayName: string;
+    type: NodePropertyTypes;
+    description?: string;
+    default?: string | number | boolean;
+    required?: boolean;
+    placeholder?: string;
+    typeOptions?: { password?: true };
+    options?: PropertyOption[];
+    noDataExpression?: boolean;
+    [key: string]: unknown;
+    rows?: number;
+}
+
+interface PropertyOption {
+    name: string;
+    value: string | number | boolean;
 }

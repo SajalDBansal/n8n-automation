@@ -85,11 +85,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                     id: node.id,
                     workflowId: workflowId,
                     type: node.type,
+                    description: node.description,
                     parameters: node.parameters || {},
                     positionX: node.positionX,
                     positionY: node.positionY,
                     name: node.name,
                     data: node.data || {},
+                    credentialId: node.credentialId || null
                 })),
             });
 

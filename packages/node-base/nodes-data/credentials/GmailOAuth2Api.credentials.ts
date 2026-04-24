@@ -1,12 +1,11 @@
 import type { NodeBaseProperties, NodeCredentialsType } from "@workspace/types";
 
 
-export class GmailOAuth2Api implements NodeCredentialsType {
-  name = "gmailOAuth2Api";
-  displayName = "Gmail OAuth2 API";
-  documentationUrl = "gmail";
-
-  properties: NodeBaseProperties[] = [
+export const GmailOAuth2Api: NodeCredentialsType = {
+  name: "gmailOAuth2Api",
+  displayName: "Gmail OAuth2 API",
+  documentationUrl: "gmail",
+  properties: [
     {
       displayName: "Grant Type",
       name: "grantType",
@@ -28,5 +27,5 @@ export class GmailOAuth2Api implements NodeCredentialsType {
       default: "",
       description: "OAuth2 Client Secret"
     }
-  ];
+  ]
 }

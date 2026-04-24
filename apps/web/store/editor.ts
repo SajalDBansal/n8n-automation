@@ -111,6 +111,8 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
         if (!workflow) return;
 
         const newNodes = nodes.map((node) => {
+            delete node.data.engine;
+
             return {
                 ...node,
                 positionX: node.position.x,
@@ -129,7 +131,6 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
             };
 
             console.log(payload);
-
 
             const res = await axios.patch(
                 `/api/projects/${projectId}/workflow/${workflowId}/update`,

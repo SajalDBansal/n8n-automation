@@ -8,7 +8,7 @@ import { GmailOAuth2Api } from "./credentials/GmailOAuth2Api.credentials";
 import { GoogleGeminiApi } from "./credentials/GoogleGeminiApi.credentials";
 import { ResendApi } from "./credentials/ResendApi.credentials";
 import { TelegramApi } from "./credentials/TelegramApi.credentials";
-import type { NodeName, NodeBaseType, NodeBaseDescription, NodeMetaData } from "@workspace/types";
+import type { NodeName, NodeMetaData, NodeCredentialsName, NodeCredentialsType } from "@workspace/types";
 
 export const PredefinedNodeMetaData: Record<NodeName, NodeMetaData> = {
     manualTrigger: ManualTriggerMetaData,
@@ -19,17 +19,9 @@ export const PredefinedNodeMetaData: Record<NodeName, NodeMetaData> = {
     lmChatGoogleGemini: LmChatGoogleGeminiMetaData,
 }
 
-export const predefinedCredentialsStructure = {
-    googleOAuth2: {
-        type: new GmailOAuth2Api()
-    },
-    lmChatGoogleGemini: {
-        type: new GoogleGeminiApi()
-    },
-    resend: {
-        type: new ResendApi()
-    },
-    telegram: {
-        type: new TelegramApi()
-    },
+export const predefinedCredentialsStructure: Record<NodeCredentialsName, NodeCredentialsType> = {
+    gmailOAuth2Api: GmailOAuth2Api,
+    googleGeminiApi: GoogleGeminiApi,
+    resendApi: ResendApi,
+    telegramApi: TelegramApi
 }

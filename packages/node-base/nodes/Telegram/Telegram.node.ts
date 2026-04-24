@@ -42,12 +42,11 @@ export const TelegramMetaData: NodeMetaData = {
                 name: "operation",
                 type: "OPTIONS",
                 noDataExpression: true,
+                description: "The operation to perform",
                 options: [
                     {
                         name: "Send Message",
                         value: "sendMessage",
-                        description: "Send a text message",
-                        action: "Send a text message",
                     },
                 ],
                 default: "sendMessage",

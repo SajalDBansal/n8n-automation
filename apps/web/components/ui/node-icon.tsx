@@ -9,7 +9,8 @@ import {
   Settings,
   Cloud,
   Code,
-  LucideIcon
+  LucideIcon,
+  KeySquare
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -25,6 +26,7 @@ const lucideIcons: { [key: string]: LucideIcon } = {
   Settings,
   Cloud,
   Code,
+  KeySquare
 };
 
 export interface INodeIcon {

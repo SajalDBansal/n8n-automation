@@ -41,6 +41,7 @@ export const baseNodeSchema = z.object({
     name: z.string(),
     description: z.string().optional(),
     data: z.record(z.any(), z.any()).optional(),
+    credentialId: z.string().nullable().optional(),
 });
 
 export const updateWorkflowDataZodSchema = z.object({

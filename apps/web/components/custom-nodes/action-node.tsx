@@ -12,8 +12,6 @@ export function ActionNode({ id, type, data }: Node) {
 
     const executionStatus = data.executionStatus || 'idle';
 
-    const nodeMetadata = getNodeMetadata(data.engine.name as NodeName);
-
     const getTriggerNodeIcon = (): string | INodeIcon => {
         if (data.engine.name) {
             const registryIcon = getNodeIcon(data.engine.name as NodeName);
@@ -75,7 +73,7 @@ export function ActionNode({ id, type, data }: Node) {
                             <div className="flex flex-col flex-1 min-w-0 py-0.5">
                                 <div className="flex items-center justify-between gap-2 mb-1">
                                     <span className="font-semibold text-sm text-foreground truncate tracking-tight">
-                                        {nodeMetadata.displayName}
+                                        {data.label}
                                     </span>
 
                                 </div>
@@ -86,7 +84,7 @@ export function ActionNode({ id, type, data }: Node) {
                                 </div>
 
                                 <p className="text-xs text-muted-foreground truncate mb-2">
-                                    {nodeMetadata.description}
+                                    {data.engine.description}
                                 </p>
 
 

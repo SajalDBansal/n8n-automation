@@ -21,10 +21,11 @@ export const ManualTriggerMetaData: NodeMetaData = {
         maxNodes: 1,
         properties: [
             {
-                displayName: 'This node is where the workflow execution starts',
+                displayName: 'Manual Trigger',
                 name: "notice",
                 type: "NOTICE",
                 default: "",
+                description: "This node is where the workflow execution starts"
             },
         ],
     }

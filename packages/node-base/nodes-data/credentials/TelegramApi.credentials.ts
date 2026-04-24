@@ -1,14 +1,11 @@
 import type { NodeBaseProperties, NodeCredentialsType } from "@workspace/types";
 
 
-export class TelegramApi implements NodeCredentialsType {
-  name = "telegramApi";
-
-  displayName = "Telegram API";
-
-  documentationUrl = "telegram";
-
-  properties: NodeBaseProperties[] = [
+export const TelegramApi: NodeCredentialsType = {
+  name: "telegramApi",
+  displayName: "Telegram API",
+  documentationUrl: "telegram",
+  properties: [
     {
       displayName: "Access Token",
       name: "accessToken",
@@ -25,5 +22,5 @@ export class TelegramApi implements NodeCredentialsType {
       default: "https://api.telegram.org",
       description: "Base URL for Telegram Bot API",
     },
-  ];
+  ]
 }

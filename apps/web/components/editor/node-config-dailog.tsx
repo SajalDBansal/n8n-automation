@@ -1,17 +1,24 @@
 "use client";
-import { getNodeMetadata, getTriggerNodeIcon } from "@/lib/node-registery";
-import { Node, NodeName } from "@workspace/types";
+import { getTriggerNodeIcon } from "@/lib/node-registery";
+import { CredentialRecord, Node, NodeName, NodeBaseProperties, NodeCredentialsName } from "@workspace/types";
 import { Button } from "@workspace/ui/components/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@workspace/ui/components/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@workspace/ui/components/dialog";
+import { WebhookDocs, ResendDocs, TelegramDocs, AgentDocs, GoogleGeminiChatDocs, ManualTriggerDocs } from "./node-docs";
 import { Input } from "@workspace/ui/components/input";
 import { NodeIcon } from "../ui/node-icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { Separator } from "@workspace/ui/components/separator";
-import { BookOpen, ExternalLink, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Field, FieldDescription, FieldLabel } from "@workspace/ui/components/field";
 import { useCallback, useEffect, useState } from "react";
 import { useWorkflowStore } from "@/store/workflow";
+import { PropertyRenderer } from "./property-renderer";
+import NodeInputPanel from "./node-input-panel";
+import NodeOutputPanel from "./node-output-panel";
 import { getNodeCredentials } from "@/action/db/credentials";
+import CredentialsSection from "../credentials/node-credentials-section";
+import { availableCredentials } from "@/lib/credential-registry";
+import CredentialConfigDrawer from "../credentials/credential-config-dialog";
 
 type NodeConfigDrawerProps = {
     projectId: string;
@@ -19,16 +26,6 @@ type NodeConfigDrawerProps = {
     isOpen: boolean;
     onClose: () => void;
     onSave: (nodeData: Node) => void;
-}
-
-interface CredentialRecord {
-    id: string;
-    name: string;
-    type: string;
-    data: unknown;
-    projectId: string;
-    createdAt: Date;
-    updatedAt: Date;
 }
 
 export default function NodeConfigDrawer({
@@ -52,57 +49,91 @@ export default function NodeConfigDrawer({
         setNodeInputs(inputs);
     }, [nodeData, setNodeInputs, workflowStore]);
 
+    const icon = getTriggerNodeIcon(nodeData?.name as NodeName);
+
     const fetchCredentials = useCallback(async () => {
         if (!nodeData?.data.credentials || nodeData.data.credentials.length === 0) {
             return;
         }
-        // const cred = await getNodeCredentials(nodeData.data.credentials || [], projectId);
-        // setCredentials(cred);
+        const cred = await getNodeCredentials(nodeData.data.credentials || [], projectId);
+        setCredentials(cred);
     }, [nodeData, projectId]);
 
     const handleParametersChange = (key: string, value: string | number | boolean) => {
         if (!nodeData) return;
 
         workflowStore.nodeParameterChangeHandler(key, value);
-        // setNodeData((prev: Node | null) => {
-        //     if (!prev) return null;
-        //     return {
-        //         ...prev,
-        //         parameters: {
-        //             ...prev.parameters,
-        //             [key]: value
-        //         }
-        //     }
-        // })
+        setNodeData((prev: Node | null) => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                parameters: {
+                    ...prev.parameters,
+                    [key]: value
+                }
+            }
+        })
     }
 
-    // const nodeMetadata = getNodeMetadata(nodeData?.name as NodeName);
-    const icon = getTriggerNodeIcon(nodeData?.name as NodeName);
+    const handleDescriptionChange = (newDescription: string) => {
+        if (!nodeData) return;
 
+        setNodeData((prev: Node | null) => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                description: newDescription,
+            }
+        })
+    }
+
+    useEffect(() => {
+        fetchCredentials();
+    }, [fetchCredentials, isOpen])
+
+    const handleCredentialChange = (credentialName: NodeCredentialsName, credentialId: string) => {
+        if (!nodeData) return;
+
+        setNodeData((prev: Node | null) => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                credentialId,
+            }
+        })
+    }
+
+    const handleCreateCredential = (credentialName: NodeCredentialsName) => {
+        setSelectedCredentialsType(credentialName);
+        setShowCredentialsModel(true);
+    }
+
+    const closeCredentialsModel = () => {
+        setShowCredentialsModel(false);
+        setSelectedCredentialsType(null);
+        fetchCredentials();
+    }
 
     const renderProperty = (property: unknown) => {
         if (!property || typeof property !== 'object') return null
 
-        // const prop = property as NodeProperty
-        // const currentValue = nodeData?.parameters[prop?.name] || prop.default || ''
+        const prop = property as NodeBaseProperties
+        const currentValue = nodeData?.parameters[prop?.name] || prop.default || ''
 
         return (
-            <div></div>
-            // <PropertyRenderer
-            //     property={prop}
-            //     value={currentValue}
-            //     onChange={(value) => handleParameterChange(prop.name, value)}
-            // />
+            <PropertyRenderer
+                property={prop}
+                value={currentValue}
+                onChange={(value: string | number | boolean) => handleParametersChange(prop.name, value)}
+            />
         )
     }
-
-    console.log(nodeData);
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => {
             if (!open) onClose();
         }}>
-            <DialogContent className='max-w-7xl flex flex-col' style={{ height: "80vh", overflowY: "hidden" }}>
+            <DialogContent className='max-w-7xl flex flex-col p-0' style={{ height: "80vh", overflowY: "hidden" }}>
                 <DialogHeader>
                     <DialogTitle className='border-b p-4'>
                         <div className="flex justify-between w-full pr-2">
@@ -120,12 +151,12 @@ export default function NodeConfigDrawer({
                                     <div className="flex flex-col flex-1 min-w-0 py-0.5">
                                         <div className="flex items-center justify-between gap-2 mb-1">
                                             <span className="font-semibold text-2xl text-foreground truncate tracking-tight">
-                                                {nodeData?.name}
+                                                {nodeData?.data.label}
                                             </span>
 
                                         </div>
                                         <DialogDescription>
-                                            {/* {nodeMetadata.description} */}
+                                            {nodeData?.description || ''}
                                         </DialogDescription>
                                     </div>
                                 </div>
@@ -140,7 +171,7 @@ export default function NodeConfigDrawer({
                     </DialogTitle>
                 </DialogHeader>
 
-                <div className="w-full flex flex-1 min-h-0 gap-4">
+                <div className="w-full flex flex-1 min-h-0 gap-4 px-4">
 
                     {/* Data fields */}
                     <div className="w-1/2 flex flex-col min-h-0">
@@ -158,36 +189,15 @@ export default function NodeConfigDrawer({
                                 value="input"
                                 className="flex-1 overflow-hidden data-[state=active]:flex flex-col"
                             >
-                                <div className="h-full flex flex-col border rounded-lg">
-                                    <div className="p-2 text-xl font-semibold shrink-0">
-                                        Node Input
-                                    </div>
-                                    <Separator />
+                                <NodeInputPanel nodeId={nodeData?.id || undefined} nodeInputs={nodeInputs} />
 
-                                    {/* SCROLL AREA */}
-                                    <div className="p-2 flex-1 flex items-center justify-center overflow-y-auto">
-                                        long content
-                                        No input data Present
-                                    </div>
-
-                                </div>
                             </TabsContent>
 
                             <TabsContent
                                 value="output"
                                 className="flex-1 overflow-hidden data-[state=active]:flex flex-col"
                             >
-                                <div className="h-full flex flex-col border rounded-lg">
-                                    <div className="p-2 text-xl font-semibold shrink-0">
-                                        Node Output
-                                    </div>
-                                    <Separator />
-
-
-                                    <div className="p-2 flex-1 overflow-y-auto">
-                                        {/* output content */}
-                                    </div>
-                                </div>
+                                <NodeOutputPanel output={nodeOutputs} />
                             </TabsContent>
                         </Tabs>
                     </div>
@@ -209,21 +219,29 @@ export default function NodeConfigDrawer({
                                 value="parameter"
                                 className="flex-1 overflow-hidden data-[state=active]:flex flex-col"
                             >
-                                <div className="h-full overflow-y-auto px-6 py-4">
+                                <div className="h-full overflow-y-auto px-2 py-4">
+
                                     <div className="space-y-6">
-                                        {/* <CredentialsSection
-                                            credentials={nodeData?.data?.credentials || []}
-                                            availableCredentials={credentials}
-                                            credentialId={nodeData?.credentialId || ""}
-                                            onCredentialChange={handleCredentialChange}
-                                            onCreateCredential={handleCreateCredential}
-                                        /> */}
+                                        <div>
+                                            <h4 className="font-semibold text-lg text-gray-900 mb-4">Credentials</h4>
+                                            <div className="space-y-4">
+                                                <CredentialsSection
+                                                    credentials={nodeData?.data?.credentials || []}
+                                                    availableCredentials={credentials}
+                                                    credentialId={nodeData?.credentialId || ""}
+                                                    onCredentialChange={handleCredentialChange}
+                                                    onCreateCredential={handleCreateCredential}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <Separator />
 
                                         {/* Dynamic Properties */}
                                         {Object.keys(nodeData?.data?.properties || {}).length > 0 && (
                                             <div>
-                                                <h4 className="font-semibold text-gray-900 mb-4">Configuration</h4>
-                                                <div className="space-y-6">
+                                                <h4 className="font-semibold text-lg text-gray-900 mb-4">Configuration</h4>
+                                                <div className="space-y-4">
                                                     {Object.keys(nodeData?.data.properties || {}).map((key) => {
                                                         const property = nodeData?.data.properties[key]
 
@@ -236,7 +254,7 @@ export default function NodeConfigDrawer({
                                                         }
 
                                                         return (
-                                                            <div key={key} className="space-y-3">
+                                                            <div key={key} className="space-y-1">
                                                                 <label className="text-sm font-medium text-gray-700 block">
                                                                     {property.displayName}
                                                                     {property.required && <span className="text-red-500 ml-1">*</span>}
@@ -245,7 +263,7 @@ export default function NodeConfigDrawer({
                                                                     {renderProperty(property)}
                                                                 </div>
                                                                 {property.description && (
-                                                                    <p className="text-xs text-gray-500 mt-1">{property.description}</p>
+                                                                    <p className="text-xs text-gray-500 mt-2">{property.description}</p>
                                                                 )}
                                                             </div>
                                                         )
@@ -254,7 +272,6 @@ export default function NodeConfigDrawer({
                                             </div>
                                         )}
 
-                                        <div className="h-4"></div>
                                     </div>
                                 </div>
                             </TabsContent>
@@ -290,7 +307,7 @@ export default function NodeConfigDrawer({
                                                 id="name-field"
                                                 type="text"
                                                 placeholder="Enter name"
-                                                // value={nodeMetadata.displayName}
+                                                value={nodeData?.data.label || ""}
                                                 disabled
                                             />
                                         </Field>
@@ -300,8 +317,9 @@ export default function NodeConfigDrawer({
                                             <Input
                                                 id="description-field"
                                                 type="text"
-                                                // placeholder={nodeMetadata.description}
-                                                value={nodeData?.description || ""}
+                                                placeholder="Enter description"
+                                                onChange={(e) => handleDescriptionChange(e.target.value)}
+                                                value={node?.description || node?.data.nodeDefaultDescription}
                                             />
                                             <FieldDescription>
                                                 Add a description for the node.
@@ -317,9 +335,29 @@ export default function NodeConfigDrawer({
                                 value="docs"
                                 className="flex-1 overflow-hidden data-[state=active]:flex flex-col"
                             >
-                                {/* {nodeMetadata.name === 'webhook' && (
+                                {nodeData?.name === "webhook" && (
                                     <WebhookDocs />
-                                )} */}
+                                )}
+
+                                {nodeData?.name === "manualTrigger" && (
+                                    <ManualTriggerDocs />
+                                )}
+
+                                {nodeData?.name === "resend" && (
+                                    <ResendDocs />
+                                )}
+
+                                {nodeData?.name === "telegram" && (
+                                    <TelegramDocs />
+                                )}
+
+                                {nodeData?.name === "lmChatGoogleGemini" && (
+                                    <GoogleGeminiChatDocs />
+                                )}
+
+                                {nodeData?.name === "agent" && (
+                                    <AgentDocs />
+                                )}
 
                             </TabsContent>
                         </Tabs>
@@ -327,100 +365,38 @@ export default function NodeConfigDrawer({
 
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="flex w-full justify-end ">
                     <DialogClose asChild>
-                        <Button variant='outline'>Cancel</Button>
+                        <Button variant='outline'
+                            onClick={() => { onClose() }}>Cancel</Button>
                     </DialogClose>
-                    <DialogClose asChild>
-                        <Button type='button'>I Agree</Button>
+                    <DialogClose asChild
+                    >
+                        <Button type='button' onClick={() => {
+                            if (nodeData) {
+                                onSave(nodeData)
+                                onClose()
+                            }
+                        }}>
+                            Save
+                        </Button>
                     </DialogClose>
                 </DialogFooter>
 
             </DialogContent>
+
+            {selectedCredentialsType && (
+                <CredentialConfigDrawer
+                    isOpen={showCredentialsModal}
+                    onClose={closeCredentialsModel}
+                    credentialType={{
+                        id: selectedCredentialsType,
+                        displayName: availableCredentials.find(c => c.name === selectedCredentialsType)?.displayName || selectedCredentialsType,
+                        properties: availableCredentials.find(c => c.name === selectedCredentialsType)?.properties || []
+                    }}
+                    projectId={projectId || undefined}
+                />
+            )}
         </Dialog>
-    )
-}
-
-
-function WebhookDocs() {
-    return (
-        <div className="h-full overflow-y-auto mt-4">
-            <div className="max-w-3xl mx-auto space-y-6">
-
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-muted">
-                            <BookOpen className="w-5 h-5 text-foreground/80" />
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold tracking-tight">
-                                Webhook Node Documentation
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                                Learn how to configure and use webhook triggers
-                            </p>
-                        </div>
-                    </div>
-
-                    <ExternalLink className="w-4 h-4 text-muted-foreground hover:text-foreground cursor-pointer" />
-                </div>
-
-                {/* Intro */}
-                <div className="text-sm text-muted-foreground leading-relaxed">
-                    The Webhook node allows you to receive HTTP requests and trigger workflows
-                    based on external events.
-                </div>
-
-                {/* Features */}
-                <div className="rounded-xl border bg-background p-4 shadow-sm">
-                    <h4 className="text-sm font-semibold mb-3 text-foreground">
-                        Key Features
-                    </h4>
-
-                    <ul className="space-y-2 text-sm text-muted-foreground">
-                        <li className="flex gap-2">
-                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
-                            Listen for HTTP requests (GET, POST, PUT, DELETE, etc.)
-                        </li>
-                        <li className="flex gap-2">
-                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
-                            Handle different content types (JSON, form data, etc.)
-                        </li>
-                        <li className="flex gap-2">
-                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
-                            Configure custom response behavior
-                        </li>
-                        <li className="flex gap-2">
-                            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
-                            Extract data from headers, query parameters, and body
-                        </li>
-                    </ul>
-                </div>
-
-                {/* Configuration */}
-                <div className="rounded-xl border bg-background p-4 shadow-sm">
-                    <h4 className="text-sm font-semibold mb-3 text-foreground">
-                        Configuration
-                    </h4>
-
-                    <ul className="space-y-3 text-sm">
-                        <li>
-                            <span className="font-medium text-foreground">HTTP Method:</span>
-                            <span className="text-muted-foreground"> Choose which HTTP methods to accept</span>
-                        </li>
-                        <li>
-                            <span className="font-medium text-foreground">Path:</span>
-                            <span className="text-muted-foreground"> Set a custom path for the webhook URL</span>
-                        </li>
-                        <li>
-                            <span className="font-medium text-foreground">Authentication:</span>
-                            <span className="text-muted-foreground"> Configure security if needed</span>
-                        </li>
-                    </ul>
-                </div>
-
-            </div>
-        </div>
     )
 }

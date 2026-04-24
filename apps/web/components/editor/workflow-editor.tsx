@@ -13,7 +13,7 @@ import { Button } from "@workspace/ui/components/button";
 import EditorSidebar from "./editor-sidebar";
 import { getNodeMetadata } from "@/lib/node-registery";
 import { DeletableEdge } from "../custom-edge/deletable-edge";
-import NodeConfigDrawer from "./node-config-drawer";
+import NodeConfigDrawer from "./node-config-dailog";
 
 interface NodeExecutionState {
     [nodeId: string]: {
@@ -185,6 +185,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
         onNodesChange([{ id: nodeId, type: 'remove' }]);
     }, [onNodesChange])
 
+
     const handleDeleteEdge = useCallback((edgeId: string) => {
         onEdgesChange([{ type: 'remove', id: edgeId }]);
     }, [onEdgesChange]);
@@ -355,9 +356,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
                 parameters: parameters,
                 data: {
                     label: nodeData.displayName,
-                    icon: nodeData.icon,
-                    nodeDescription: nodeData.description,
-                    nodeType: nodeData.type,
+                    nodeDefaultDescription: nodeData.description,
                     category: nodeData.group?.[0] || 'default',
                     credentials: nodeData.credentials,
                     properties: nodeData.properties
@@ -528,6 +527,9 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
     };
 
     const handleNodeSave = (updatedNode: Node) => {
+
+        // console.log(updatedNode);
+
         setNodes((currentNodes) => {
             const updatedNodes = currentNodes.map((node) =>
                 node.id === updatedNode.id ? updatedNode : node

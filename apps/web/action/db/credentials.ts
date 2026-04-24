@@ -1,3 +1,4 @@
+"use server";
 import prisma from "@workspace/database";
 
 export const getNodeCredentials = async (credentials: any, projectId: string) => {
@@ -17,6 +18,11 @@ export const getNodeCredentials = async (credentials: any, projectId: string) =>
             where: {
                 type: { in: credentials.map((cred: any) => cred.name) },
                 projectId
+            },
+            select: {
+                id: true,
+                name: true,
+                type: true,
             }
         })
 
