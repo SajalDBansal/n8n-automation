@@ -1,7 +1,7 @@
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { NodeExecutionType, SupplyData } from "@workspace/types";
-import { getCredentials } from "../get-credentials.js";
+import { getCredentials } from "../get-credentials";
 
 export const LmChatGoogleGemini: NodeExecutionType = {
 

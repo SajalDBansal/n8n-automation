@@ -1,6 +1,6 @@
 
 import { getNodeIcon, getNodeMetadata } from "@/lib/node-registery";
-import type { Node, NodeName, WorkflowNodeProps } from "@workspace/types";
+import { NodeStatus, type Node, type NodeName, type WorkflowNodeProps } from "@workspace/types";
 import { Badge } from "@workspace/ui/components/badge";
 import { cn } from "@workspace/ui/lib/utils";
 import { Handle, Position } from "@xyflow/react";
@@ -11,7 +11,7 @@ import { NodeDeleteButton } from "../ui/node-delete-button";
 
 export function ModelNode({ id, type, data }: Node) {
 
-    const executionStatus = data.executionStatus || 'idle';
+    const executionStatus: NodeStatus = data.executionStatus || NodeStatus.idle;
 
     const getTriggerNodeIcon = (): string | INodeIcon => {
         if (data.engine.name) {
@@ -33,10 +33,10 @@ export function ModelNode({ id, type, data }: Node) {
             <div className="flex justify-between items-center w-full">
                 <div
                     className={cn(' h-2 w-2 rounded-full border-2 border-card shadow-sm transition-colors duration-300', {
-                        'bg-green-500': executionStatus === 'success',
-                        'bg-blue-500 animate-pulse': executionStatus === 'executing',
-                        'bg-red-500': executionStatus === 'failed',
-                        'bg-muted-foreground/30': executionStatus === 'idle',
+                        'bg-green-500': executionStatus === NodeStatus.success,
+                        'bg-blue-500 animate-pulse': executionStatus === NodeStatus.executing,
+                        'bg-red-500': executionStatus === NodeStatus.failed,
+                        'bg-muted-foreground/30': executionStatus === NodeStatus.idle,
                     })}
                 />
 
@@ -50,7 +50,7 @@ export function ModelNode({ id, type, data }: Node) {
                 <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
 
                 <Handle
-                    type="source"
+                    type="target"
                     position={Position.Left}
                     className="w-3 h-3 bg-primary! border-2 border-background! transition-transform group-hover:scale-125"
                 />

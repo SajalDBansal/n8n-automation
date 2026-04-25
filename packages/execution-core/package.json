@@ -1,13 +1,8 @@
 {
   "name": "@workspace/execution-core",
-  "module": "src/index.ts",
-  "main": "src/index.ts",
-  "type": "module",
+  "main": "index.js",
+  "types": "index.ts",
   "private": true,
-  "exports": {
-    ".": "./src/index.ts",
-    "./*": "./src/*"
-  },
   "dependencies": {
     "@workspace/database": "workspace:*",
     "@workspace/node-base": "workspace:*",

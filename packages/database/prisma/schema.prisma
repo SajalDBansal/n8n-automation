@@ -25,9 +25,6 @@ model User {
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
   projects                 Project[]
-
-  @@index([id])
-  @@index([email])
 }
 
 model PendingUser {
@@ -39,9 +36,6 @@ model PendingUser {
   otpExpiry    DateTime
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  @@index([id])
-  @@index([email])
 }
 
 enum ProjectType {
@@ -63,9 +57,7 @@ model Project {
   workflows   Workflow[]
   credentials Credential[]
 
-  @@index([id])
   @@index([userId])
-  @@index([id, userId])
 }
 
 model Workflow {
@@ -84,7 +76,6 @@ model Workflow {
   executions Execution[]
   webhooks   webhook[]
 
-  @@index([id])
   @@index([projectId])
 }
 
@@ -109,7 +100,6 @@ model Node {
   outEdges Edge[] @relation("SourceNode")
   inEdges  Edge[] @relation("TargetNode")
 
-  @@index([id])
   @@index([workflowId])
 }
 
@@ -127,7 +117,6 @@ model Edge {
   sourceNode Node     @relation("SourceNode", fields: [source], references: [id], onDelete: Cascade)
   targetNode Node     @relation("TargetNode", fields: [target], references: [id], onDelete: Cascade)
 
-  @@index([id])
   @@index([workflowId])
 }
 
@@ -143,7 +132,6 @@ model Credential {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   nodes   Node[]
 
-  @@index([id])
   @@index([projectId])
 }
 
@@ -173,13 +161,13 @@ model Execution {
 
   workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
-  @@index([id])
   @@index([workflowId])
+  @@index([workflowId, createdAt])
 }
 
 model webhook {
   id      String  @id @default(cuid())
-  url     String
+  url     String  @unique
   method  String?
   headers Json?
   body    Json?
@@ -190,5 +178,5 @@ model webhook {
 
   workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
-  @@index([id])
+  @@index([workflowId])
 }

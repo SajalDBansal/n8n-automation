@@ -2,7 +2,7 @@
 import { useWorkflowEditor } from "@/store/editor";
 import { useWorkflowStore } from "@/store/workflow";
 import { nodeTypes } from "@/utils/node-types";
-import { Node, NodeBaseProperties, NodeName, NodeType, NodeTypeFromDB } from "@workspace/types";
+import { ExecutionStatusType, Node, NodeBaseProperties, NodeName, NodeStatus, NodeType, NodeTypeFromDB } from "@workspace/types";
 import { Edge, Node as RFNode } from "@xyflow/react";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@workspace/ui/components/resizable";
 import { Background, Controls, IsValidConnection, MiniMap, ReactFlow, ReactFlowInstance } from "@xyflow/react";
@@ -17,20 +17,22 @@ import NodeConfigDrawer from "./node-config-dailog";
 
 interface NodeExecutionState {
     [nodeId: string]: {
-        status: 'idle' | 'executing' | 'success' | 'failed';
+        status: NodeStatus;
         message?: string;
         response?: unknown;
     };
 }
 
 interface ExecutionMessage {
-    nodeId?: string;
-    nodeName?: string;
+    nodeData?: {
+        nodeId: string;
+        nodeName: string;
+        nodeStatus: NodeStatus;
+    }
     executionId: string;
     workflowId?: string;
-    status: string;
+    status: ExecutionStatusType;
     message?: string;
-    nodeStatus?: 'executing' | 'success' | 'failed';
     response?: Record<string, unknown>;
     json?: Record<string, unknown>
 }
@@ -113,6 +115,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isExecuting, setIsExecuting] = useState(false);
     const [executionOutput, setExecutionOutput] = useState<unknown>(null);
+    const [isActive, setIsActive] = useState(false);
     const workflowStore = useWorkflowStore();
     const { nodes,
         edges,
@@ -201,7 +204,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
             data: {
                 ...node.data,
                 engine: { ...node },
-                executionStatus: nodeExecutionStates[node.id]?.status || 'idle',
+                executionStatus: nodeExecutionStates[node.id]?.status || NodeStatus.idle,
                 onDelete: handleDeleteNode,
             }
         }))
@@ -229,6 +232,8 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
 
     const isValidConnection: IsValidConnection = useCallback((conn) => {
         const { source, target } = conn;
+        console.log(conn);
+
 
         const sourceHandle = conn.sourceHandle ?? undefined;
         const targetHandle = conn.targetHandle ?? undefined;
@@ -281,6 +286,13 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
 
                 if (exists) {
                     toast.error("Agent already has a Chat Model connected");
+                    return false;
+                }
+            }
+
+            if (sourceHandle === "output") {
+                if (targetType === "CHAT_MODEL") {
+                    toast.error("Agent output can not be connected to a Chat Model node");
                     return false;
                 }
             }
@@ -344,7 +356,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
 
             if (nodeData.name === 'webhook') {
                 const origin = typeof window !== 'undefined' ? window.location.origin : '';
-                parameters['path'] = `${origin}/api/projects/${projectId}/workflow/${workflowId}/webhook`;
+                parameters['path'] = `${origin}/api/projects/${projectId}/workflow/${workflowId}/webhook/${id}`;
             }
 
             const newNode: Node = {
@@ -384,6 +396,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
         try {
             const res = await saveWorkflow(projectId, workflowId);
 
+            // workflowStore.setWorkflow(res.data.workflow);
             savedSnapshotRef.current = currentSnapshot;
             setHasUnsavedChanges(false);
 
@@ -422,20 +435,19 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
             setExecutionLogs((currentLogs) => [...currentLogs, parsedData]);
 
             // Update node execution states
-            if (parsedData.nodeId) {
+            if (parsedData.nodeData) {
+                const nodeData = parsedData.nodeData;
                 setNodeExecutionStates((prevStates) => ({
                     ...prevStates,
-                    [parsedData.nodeId!]: {
-                        status: parsedData.nodeStatus === 'executing' ? 'executing' :
-                            parsedData.nodeStatus === 'success' ? 'success' :
-                                parsedData.nodeStatus === 'failed' ? 'failed' : 'idle',
+                    [nodeData.nodeId!]: {
+                        status: nodeData.nodeStatus as NodeStatus,
                         message: parsedData.message,
                         response: parsedData.response,
                     }
                 }));
 
                 // Show toast for node failures
-                if (parsedData.nodeStatus === 'failed') {
+                if (nodeData.nodeStatus === NodeStatus.failed) {
                     let errorMessage = 'Unknown error';
                     const responseError = parsedData.response?.['error'];
                     const responseMessage = parsedData.response?.['message'];
@@ -452,7 +464,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
                     }
 
                     toast.error(
-                        `Node "${parsedData.nodeName || parsedData.nodeId}" failed:\n${errorMessage}`,
+                        `Node "${nodeData.nodeName || nodeData.nodeId}" failed:\n${errorMessage}`,
                         {
                             duration: 8000,
                             style: {
@@ -465,19 +477,23 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
             }
 
             // Check if workflow execution finished
-            if (parsedData.status === "Success") {
+            if (parsedData.status === "SUCCESS") {
                 console.log("Workflow execution completed successfully", executionLogs);
                 setIsExecuting(false);
                 eventSource.close();
+                console.log(parsedData.json);
+
                 workflowStore.setJsonOutputs(parsedData.json!);
 
                 setExecutionOutput(parsedData.json);
                 // setIsOutputPanelOpen(true);
 
+
+
                 toast.success('Workflow executed successfully!', {
                     duration: 4000,
                 });
-            } else if (parsedData.status === "Failed") {
+            } else if (parsedData.status === "CRASHED") {
                 console.log("Workflow execution failed", executionLogs);
 
                 setIsExecuting(false);
@@ -485,7 +501,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
                 workflowStore.setJsonOutputs(parsedData.json!);
 
                 // Only show workflow failure toast if we didn't just show a node failure toast
-                if (parsedData.nodeStatus !== 'failed') {
+                if (parsedData.nodeData?.nodeStatus !== NodeStatus.failed) {
                     let errorMessage = 'Unknown error occurred';
                     const responseError = parsedData.response?.['error'];
                     if (parsedData.message) {
@@ -519,6 +535,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
             });
         }
     }
+
 
     const handleNodeModalClose = () => {
         setIsNodeConfigModelOpen(false);

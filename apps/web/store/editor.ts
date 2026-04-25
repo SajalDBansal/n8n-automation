@@ -2,6 +2,7 @@ import { EditorStoreType } from "@workspace/types";
 import { applyNodeChanges, applyEdgeChanges, addEdge, Edge, NodeChange } from "@xyflow/react";
 import axios from "axios";
 import { create } from "zustand";
+import { useWorkflowStore } from "./workflow";
 
 const normalizeHandleId = (handle: unknown): string | undefined => {
     if (handle === null || handle === undefined) return undefined;
@@ -143,6 +144,7 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
             }
 
             set({ workflow: res.data.workflow });
+            useWorkflowStore.getState().setWorkflow(workflow);
 
         } catch (err) {
             set({ error: "Failed to save workflow" });

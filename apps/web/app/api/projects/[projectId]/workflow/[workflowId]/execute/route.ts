@@ -109,9 +109,9 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ work
                             console.log("parsedMessage", parsedMessage);
 
                             if (
-                                parsedMessage.status === "Success" ||
-                                parsedMessage.status === "Failed" ||
-                                parsedMessage.status === "Error"
+                                parsedMessage.status === "SUCCESS" ||
+                                parsedMessage.status === "FAILED" ||
+                                parsedMessage.status === "ERROR"
                             ) {
                                 console.log(
                                     `Workflow ${executionId} finished with status: ${parsedMessage.status}`
@@ -179,6 +179,9 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ work
                 }
             },
         });
+
+        console.log(stream);
+
 
         return new Response(stream, {
             headers: {

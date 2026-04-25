@@ -4,7 +4,7 @@ import prisma from "@workspace/database";
 export const getNodeCredentials = async (credentials: any, projectId: string) => {
     try {
 
-        console.log("Fetching credentials for :", { credentials, projectId });
+        // console.log("Fetching credentials for :", { credentials, projectId });
 
         if (!projectId) {
             return [];
@@ -26,7 +26,7 @@ export const getNodeCredentials = async (credentials: any, projectId: string) =>
             }
         })
 
-        console.log("Fetched Credentials : ", response);
+        // console.log("Fetched Credentials : ", response);
         return response;
     } catch (error) {
         console.log("Error while fetching credentials :", error);

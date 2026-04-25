@@ -1,6 +1,6 @@
 
 import { getNodeIcon } from "@/lib/node-registery";
-import type { Node, NodeName } from "@workspace/types";
+import { Node, NodeName, NodeStatus } from "@workspace/types";
 import { Badge } from "@workspace/ui/components/badge";
 import { cn } from "@workspace/ui/lib/utils";
 import { Handle, Position } from "@xyflow/react";
@@ -9,8 +9,7 @@ import { NodeExecutionIndicator } from "../ui/node-spinner";
 import { NodeDeleteButton } from "../ui/node-delete-button";
 
 export function TriggerNode({ id, type, data }: Node) {
-    const executionStatus = data.executionStatus || 'idle';
-
+    const executionStatus: NodeStatus = data.executionStatus || NodeStatus.idle;
     const getTriggerNodeIcon = (): string | INodeIcon => {
         if (data.engine.name) {
             const registryIcon = getNodeIcon(data.engine.name as NodeName);
@@ -33,10 +32,10 @@ export function TriggerNode({ id, type, data }: Node) {
             <div className="flex justify-between items-center w-full">
                 <div
                     className={cn(' h-2 w-2 rounded-full border-2 border-card shadow-sm transition-colors duration-300', {
-                        'bg-green-500': executionStatus === 'success',
-                        'bg-blue-500 animate-pulse': executionStatus === 'executing',
-                        'bg-red-500': executionStatus === 'failed',
-                        'bg-muted-foreground/30': executionStatus === 'idle',
+                        'bg-green-500': executionStatus === NodeStatus.success,
+                        'bg-blue-500 animate-pulse': executionStatus === NodeStatus.executing,
+                        'bg-red-500': executionStatus === NodeStatus.failed,
+                        'bg-muted-foreground/30': executionStatus === NodeStatus.idle,
                     })}
                 />
 
@@ -97,9 +96,9 @@ export function TriggerNode({ id, type, data }: Node) {
 
                 {/* Handle positioned to the bottom */}
                 <Handle
-                    type="target"
+                    type="source"
                     position={Position.Bottom}
-                    id="out"
+                    id="trigger-output"
                     className="w-3 h-3 bg-primary! border-2 border-background! transition-transform group-hover:scale-125"
                 />
             </div>

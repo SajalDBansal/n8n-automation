@@ -119,9 +119,10 @@ function NodeInputSection({ nodeId, nodeData, isExpanded, onToggle, expandedPath
                 <div className="p-4 bg-white">
                     {hasData ? (
                         <div className="space-y-1">
-                            {Object.keys(nodeDataObj).map((key) =>
+                            {Object.keys(nodeDataObj).map((key, index) =>
                                 <RenderKeyValue
-                                    key={key}
+                                    key={index}
+                                    keyVal={key}
                                     value={nodeDataObj[key]}
                                     depth={0}
                                     nodeId={nodeId}
@@ -141,8 +142,8 @@ function NodeInputSection({ nodeId, nodeData, isExpanded, onToggle, expandedPath
     );
 }
 
-function RenderKeyValue({ key, value, depth = 0, nodeId = "", pathPrefix = "", expandedPaths, togglePath }: {
-    key: string;
+function RenderKeyValue({ keyVal, value, depth = 0, nodeId = "", pathPrefix = "", expandedPaths, togglePath }: {
+    keyVal: string;
     value: unknown;
     depth: number;
     nodeId: string;
@@ -150,7 +151,7 @@ function RenderKeyValue({ key, value, depth = 0, nodeId = "", pathPrefix = "", e
     expandedPaths: Record<string, boolean>;
     togglePath: (path: string) => void;
 }) {
-    const currentPath = pathPrefix ? `${pathPrefix}.${key}` : key;
+    const currentPath = pathPrefix ? `${pathPrefix}.${keyVal}` : keyVal;
     const fullPath = nodeId ? `${nodeId}.${currentPath}` : currentPath;
     const expandKey = `${nodeId}.${currentPath}`;
     const isExpanded = expandedPaths[expandKey] ?? (depth < 2);
@@ -160,7 +161,7 @@ function RenderKeyValue({ key, value, depth = 0, nodeId = "", pathPrefix = "", e
         const hasChildren = Object.keys(objectValue).length > 0
 
         return (
-            <div key={key} className="mb-2">
+            <div key={keyVal} className="mb-2">
                 <div
                     className={`flex items-center gap-2 cursor-pointer  p-2 rounded-md`}
                     onClick={() => togglePath(expandKey)}
@@ -185,7 +186,7 @@ function RenderKeyValue({ key, value, depth = 0, nodeId = "", pathPrefix = "", e
                         draggable
                         title={`Drag to use: {{ ${fullPath} }}`}
                     >
-                        {key}
+                        {keyVal}
                     </span>
                     {hasChildren && (
                         <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
@@ -199,6 +200,7 @@ function RenderKeyValue({ key, value, depth = 0, nodeId = "", pathPrefix = "", e
                         {Object.keys(objectValue).map((subKey) =>
                             < RenderKeyValue
                                 key={subKey}
+                                keyVal={subKey}
                                 value={objectValue[subKey]}
                                 depth={depth + 1}
                                 nodeId={nodeId}
@@ -213,7 +215,7 @@ function RenderKeyValue({ key, value, depth = 0, nodeId = "", pathPrefix = "", e
         )
     } else if (Array.isArray(value)) {
         return (
-            <div key={key} className="mb-2">
+            <div key={keyVal} className="mb-2">
                 <div
                     className={`flex items-center gap-2 cursor-pointer  p-2 rounded-md transition-colors`}
                     onClick={() => togglePath(expandKey)}
@@ -234,7 +236,7 @@ function RenderKeyValue({ key, value, depth = 0, nodeId = "", pathPrefix = "", e
                         draggable
                         title={`Drag to use: {{ ${fullPath} }}`}
                     >
-                        {key}
+                        {keyVal}
                     </span>
                     <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
                         Array ({value.length} {value.length === 1 ? 'item' : 'items'})
@@ -245,7 +247,8 @@ function RenderKeyValue({ key, value, depth = 0, nodeId = "", pathPrefix = "", e
                     <div className="ml-6 border-l-2 border-gray-200 pl-4 space-y-1">
                         {value.map((item, index) =>
                             <RenderKeyValue
-                                key={`${key}.${index}`}
+                                key={index}
+                                keyVal={`${keyVal}.${index}`}
                                 value={item}
                                 depth={depth + 1}
                                 nodeId={nodeId}
@@ -260,7 +263,7 @@ function RenderKeyValue({ key, value, depth = 0, nodeId = "", pathPrefix = "", e
         )
     } else {
         return (
-            <div key={key} className="flex items-center gap-2 mb-2 p-2 hover:bg-blue-50 rounded-md group transition-colors">
+            <div key={keyVal} className="flex items-center gap-2 mb-2 p-2 hover:bg-blue-50 rounded-md group transition-colors">
                 <div className="w-4 h-4" />
                 <span
                     className="text-sm font-medium text-gray-700 min-w-0 shrink-0 cursor-grab select-none hover:text-blue-600 hover:bg-blue-100 px-2 py-1 rounded border-2 border-dashed border-transparent hover:border-blue-300 transition-all"
@@ -275,7 +278,7 @@ function RenderKeyValue({ key, value, depth = 0, nodeId = "", pathPrefix = "", e
                     draggable
                     title={`Drag to use: {{ ${fullPath} }}`}
                 >
-                    {key}:
+                    {keyVal}:
                 </span>
                 <span className="text-sm text-gray-600 break-all min-w-0 flex-1">
                     {String(value)}

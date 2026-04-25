@@ -1,9 +1,10 @@
-import { Edge, ExecutionEventPublisher, ExecutionRunTimeInput, Node, NodeExecutionBasePayload, NodeStatus, PublishPayloadDataType } from "@workspace/types";
-import { NodeOutput } from "./node-output.js";
-import { updateExecutionStatusInDB } from "./db-helper.js";
-import { constructErrorMessage } from "./error-provider.js";
-import { ExpressionResolver } from "./expression-resolver.js";
-import { predefinedNodesStructure } from "./execute-provider.js";
+import type { Edge, ExecutionEventPublisher, ExecutionRunTimeInput, Node, NodeExecutionBasePayload, PublishPayloadDataType } from "@workspace/types";
+import { NodeStatus } from "@workspace/types";
+import { NodeOutput } from "./node-output";
+import { updateExecutionStatusInDB } from "./db-helper";
+import { constructErrorMessage } from "./error-provider";
+import { ExpressionResolver } from "./expression-resolver";
+import { predefinedNodesStructure } from "./execute-provider";
 
 export class WorkFlowRunner {
     workflowId: string | null = null;
@@ -32,7 +33,7 @@ export class WorkFlowRunner {
         console.log("Executing Workflow", this.nodes);
         await updateExecutionStatusInDB(this.executionId!, "RUNNING");
 
-        const triggerNode = this.nodes.find((node) => node.type === "TRIGGER");
+        const triggerNode = this.nodes.find((node) => node.type === "TRIGGER" || node.type === "WEBHOOK");
 
         const commonPaylod: NodeExecutionBasePayload = {
             executionId: this.executionId,
@@ -58,6 +59,7 @@ export class WorkFlowRunner {
             await this.publish({
                 ...commonPaylod,
                 status: "SUCCESS",
+                json: this.nodeOutputs.json,
                 message: "Workflow Execution Finished Successfully"
             })
         } catch (error) {

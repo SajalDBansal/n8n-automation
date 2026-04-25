@@ -1,4 +1,4 @@
-import { NodeOutputDataType, NodeOutput as NodeOutputType } from "@workspace/types";
+import type { NodeOutputDataType, NodeOutput as NodeOutputType } from "@workspace/types";
 
 export class NodeOutput {
     json: NodeOutputType;

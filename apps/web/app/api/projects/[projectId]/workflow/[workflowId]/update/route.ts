@@ -71,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 }, { status: 200 })
             }
 
-            const webhookNode = nodes.filter((node) => node.type === "webhook");
+            const webhookNode = nodes.filter((node) => node.type === "WEBHOOK");
 
             if (webhookNode.length > 1) {
                 return NextResponse.json({
@@ -113,12 +113,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                         message: "Webhook node ID is required",
                     }, { status: 400 });
                 }
-                const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/${webhook.id}`;
+                const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/projects/${projectId}/workflow/${workflowId}/webhook/${webhook.id}`;
                 await tx.webhook.create({
                     data: {
                         id: webhook.id,
                         url: webhookUrl,
                         workflowId: workflowId,
+
                     }
                 })
             }

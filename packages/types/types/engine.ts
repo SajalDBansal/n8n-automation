@@ -62,6 +62,7 @@ export enum NodeStatus {
     success = "SUCCESS",
     failed = "FAILED",
     executing = "EXECUTING",
+    idle = "IDLE",
 }
 
 export type ExecutionStatusDataType = {

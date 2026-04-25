@@ -1,5 +1,5 @@
 import prisma from "@workspace/database";
-import { ExecutionStatusDataType } from "@workspace/types";
+import type { ExecutionStatusDataType } from "@workspace/types";
 
 export const updateExecutionStatusInDB = async (
     executionId: string,
@@ -20,7 +20,7 @@ export const updateExecutionStatusInDB = async (
         }
 
         await prisma.execution.update({
-            where: { id: "asdfsd" },
+            where: { id: executionId },
             data: updatedData
         });
 

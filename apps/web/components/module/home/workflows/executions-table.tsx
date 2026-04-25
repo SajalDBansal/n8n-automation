@@ -145,8 +145,8 @@ export default function WorkflowExecutionsTable({ workflowId }: { workflowId: st
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
                                     {
-                                        executions.map((execution) => (
-                                            <tr key={execution.id} className="hover:bg-gray-50">
+                                        executions.map((execution, index) => (
+                                            <tr key={index} className="hover:bg-gray-50">
                                                 <td className="py-3 px-4">
                                                     <div className="flex items-center gap-2">
                                                         <div className={`w-2 h-2 rounded-full ${execution.status === "SUCCESS" ? 'bg-green-500' :

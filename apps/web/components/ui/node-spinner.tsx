@@ -1,5 +1,6 @@
 import { cn } from "@workspace/ui/lib/utils";
 import { LoaderIcon } from "lucide-react";
+import { NodeStatus } from "@workspace/types";
 
 
 export function NodeExecutionIndicator({
@@ -7,7 +8,7 @@ export function NodeExecutionIndicator({
     size = 'md',
     className
 }: {
-    status: 'idle' | 'executing' | 'success' | 'failed';
+    status: NodeStatus;
     size?: 'sm' | 'md' | 'lg';
     className?: string;
 }) {
@@ -17,7 +18,7 @@ export function NodeExecutionIndicator({
         lg: 'w-8 h-8'
     };
 
-    if (status === 'executing') {
+    if (status === NodeStatus.executing) {
         return <LoaderIcon
             role="status"
             aria-label="Loading"
@@ -25,7 +26,7 @@ export function NodeExecutionIndicator({
         />;
     }
 
-    if (status === 'success') {
+    if (status === NodeStatus.success) {
         return (
             <div className={cn(
                 'flex items-center justify-center rounded-full',
@@ -49,7 +50,7 @@ export function NodeExecutionIndicator({
         );
     }
 
-    if (status === 'idle') {
+    if (status === NodeStatus.idle) {
         return (
             <div className={cn(
                 'flex items-center justify-center rounded-full',
@@ -68,7 +69,7 @@ export function NodeExecutionIndicator({
         );
     }
 
-    if (status === 'failed') {
+    if (status === NodeStatus.failed) {
         return (
             <div className={cn(
                 'flex items-center justify-center rounded-full bg-red-500',
