@@ -11,7 +11,7 @@ export const Agent: NodeExecutionType = {
     }): Promise<{ success: boolean; data?: any; error?: string }> => {
 
         try {
-            console.log("params -------> ", { parameters, model });
+            // console.log("params -------> ", { parameters, model });
 
             if (!parameters) {
                 console.error("parameters are not provided");

@@ -8,6 +8,7 @@
     "@workspace/node-base": "workspace:*",
     "@workspace/types": "workspace:*",
     "ai": "^6.0.168",
+    "p-limit": "^7.3.0",
     "resend": "^6.12.2"
   },
   "devDependencies": {

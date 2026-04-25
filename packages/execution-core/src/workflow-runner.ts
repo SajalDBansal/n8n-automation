@@ -15,6 +15,19 @@ export class WorkFlowRunner {
     nodeOutputs: NodeOutput;
     private publisher: ExecutionEventPublisher;
 
+    // Graph for execution traversal Kahns algorithim
+    private inDegree = new Map<string, number>();
+    private adjacentList = new Map<string, string[]>();
+
+    // for fast node traversal
+    private nodeMap = new Map<string, Node>()
+    private childrenMap = new Map<string, Edge[]>();
+    private basePayload: NodeExecutionBasePayload = {
+        executionId: "",
+        workflowId: "",
+        projectId: "",
+    }
+
     constructor(input: ExecutionRunTimeInput, publisher: ExecutionEventPublisher) {
         this.workflowId = input.workflowId;
         this.executionId = input.executionId;
@@ -23,15 +36,90 @@ export class WorkFlowRunner {
         this.edges = input.edges;
         this.publisher = publisher;
         this.nodeOutputs = new NodeOutput();
+        this.basePayload = {
+            executionId: input.executionId,
+            workflowId: input.workflowId,
+            projectId: input.projectId,
+        }
+
+        this.nodeMap = new Map(this.nodes.map(n => [n.id, n]));
+        for (const edge of this.edges) {
+            if (!this.childrenMap.has(edge.source)) {
+                this.childrenMap.set(edge.source, []);
+            }
+            this.childrenMap.get(edge.source)!.push(edge);
+        }
     }
 
     private async publish(payload: PublishPayloadDataType) {
         await this.publisher.publish(payload);
     }
 
+    private buildGraph() {
+        // get the id of all the connect nodes
+        const connectedNodesId = new Set<string>();
+
+        for (const edge of this.edges) {
+            connectedNodesId.add(edge.source);
+            connectedNodesId.add(edge.target);
+        }
+
+        const disconnectedNodes = this.nodes.filter(node => !connectedNodesId.has(node.id));
+
+        if (disconnectedNodes.length > 0) {
+            const message = `Disconnected nodes are not allowed: ${disconnectedNodes.map(n => n.name).join(", ")}`;
+
+            console.warn("Disconnected nodes: ", disconnectedNodes);
+            throw new Error(message);
+        }
+
+        for (const node of this.nodes) {
+            this.inDegree.set(node.id, 0);
+            this.adjacentList.set(node.id, []);
+        }
+
+        for (const edge of this.edges) {
+            const { source, target } = edge;
+
+            if (!this.nodeMap.has(source) || !this.nodeMap.has(target)) {
+                throw new Error(`Invalid edge: ${edge.source} -> ${edge.target}`);
+            }
+
+            this.adjacentList.get(source)?.push(target);
+            this.inDegree.set(target, (this.inDegree.get(target) || 0) + 1);
+        }
+    }
+
+    private async validateGraph() {
+        const startNodes = this.nodes.filter((node) => (this.inDegree.get(node.id) || 0) === 0);
+
+        if (startNodes.length === 0) {
+            const message = "No starting nodes found (possible cycle or invalid graph)";
+            throw new Error(message);
+        }
+
+        const invalidStartNodes = startNodes.filter(
+            (node) => node.type !== "TRIGGER" && node.type !== "WEBHOOK")
+
+        if (invalidStartNodes.length > 0) {
+            const message = `Invalid workflow: Non-trigger nodes found as entry points (${invalidStartNodes.map(n => n.name).join(", ")})`
+
+            console.warn(message);
+            throw new Error(message);
+        }
+
+        // use kahns algorithim to check if the graph is traversable
+        // if the graph traversal fails use dfs to check if any cycle present
+        // if cycle then return cycle path error
+        // if no cycle return kahns fail error
+
+    }
+
     async run() {
-        console.log("Executing Workflow", this.nodes);
+        // console.log("Executing Workflow", this.nodes);
         await updateExecutionStatusInDB(this.executionId!, "RUNNING");
+
+
 
         const triggerNode = this.nodes.find((node) => node.type === "TRIGGER" || node.type === "WEBHOOK");
 
@@ -45,16 +133,18 @@ export class WorkFlowRunner {
             await updateExecutionStatusInDB(this.executionId!, "ERROR", true);
             await this.publish({
                 ...commonPaylod,
-                status: "FAILED",
+                status: "CRASHED",
                 message: "No Trigger Node Found For Execution",
             });
             return;
         }
 
         try {
+            this.buildGraph();
+
             await this.executeNode(triggerNode);
 
-            console.info("Workflow execution completed successfully");
+            // console.info("Workflow execution completed successfully");
             await updateExecutionStatusInDB(this.executionId!, "SUCCESS", true);
             await this.publish({
                 ...commonPaylod,
@@ -66,6 +156,12 @@ export class WorkFlowRunner {
             await updateExecutionStatusInDB(this.executionId!, "ERROR", true);
             const errorMessage = constructErrorMessage(error);
             console.error("Workflow execution failed:", errorMessage);
+            await this.publish({
+                ...commonPaylod,
+                status: "CANCELLED",
+                json: this.nodeOutputs.json,
+                message: errorMessage
+            })
         }
 
     }
@@ -127,7 +223,7 @@ export class WorkFlowRunner {
             const errorMessage = constructErrorMessage(error);
             await this.publish({
                 ...commonPaylod,
-                status: "FAILED",
+                status: "CRASHED",
                 message: `Workflow Execution failed at Node ${currentNode.name}: ${errorMessage}`,
                 json: this.nodeOutputs.json,
                 error: errorMessage,
@@ -145,8 +241,8 @@ export class WorkFlowRunner {
         const resolver = new ExpressionResolver(this.nodeOutputs.getOutputForResolver());
         const resolvedParameters = resolver.resolveParameters(currentNode.parameters);
 
-        console.log("Original Parameters", currentNode.parameters);
-        console.log("Resolved Parameters", resolvedParameters);
+        // console.log("Original Parameters", currentNode.parameters);
+        // console.log("Resolved Parameters", resolvedParameters);
 
         switch (currentNode.name) {
             case "manualTrigger":

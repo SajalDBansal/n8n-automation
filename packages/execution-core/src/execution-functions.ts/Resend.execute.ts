@@ -9,7 +9,7 @@ export const Resend: NodeExecutionType = {
         projectId,
         credentialId,
     }: any): Promise<{ success: boolean; data?: any; error?: string }> => {
-        console.log("params -------> ", { parameters, projectId, credentialId });
+        // console.log("params -------> ", { parameters, projectId, credentialId });
 
         if (!parameters) {
             console.error("parameters are not provided");
@@ -35,7 +35,7 @@ export const Resend: NodeExecutionType = {
             select: { data: true },
         }) as { data: { resendApiKey: string } } | null;
 
-        console.log("feteched credential ----> ", credential);
+        // console.log("feteched credential ----> ", credential);
 
         if (!credential || !credential.data.resendApiKey) {
             return { success: false, error: "Bad Request" };

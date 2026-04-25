@@ -12,7 +12,7 @@ export const Telegram: NodeExecutionType = {
         projectId: string;
         credentialId: string;
     }): Promise<{ success: boolean; data?: any; error?: string }> => {
-        console.log("params -------> ", { parameters, projectId, credentialId });
+        // console.log("params -------> ", { parameters, projectId, credentialId });
 
         if (!parameters || !parameters.chatId || !parameters.text) {
             console.error("parameters are not provided");
@@ -40,7 +40,7 @@ export const Telegram: NodeExecutionType = {
             select: { data: true },
         }) as { data: { accessToken: string } } | null;
 
-        console.log("feteched credential ----> ", credential);
+        // console.log("feteched credential ----> ", credential);
         const url = `https://api.telegram.org/bot${credential?.data?.accessToken}/sendMessage?chat_id=${parameters.chatId}&text=${parameters.text}`;
 
         const response = await fetch(url);
@@ -50,7 +50,7 @@ export const Telegram: NodeExecutionType = {
             return { success: false, error: "Bad Request" };
         }
 
-        console.log(JSON.stringify(data, null, 2));
+        // console.log(JSON.stringify(data, null, 2));
 
         return { success: true, data };
     }
