@@ -95,8 +95,8 @@ export const useWorkflowStore = create<WorkflowStoreType>((set, get) => ({
     },
     getInputsForNode: (nodeId) => {
         const { workflow, jsonOutput } = get();
-        console.log("workflow", workflow);
-        console.log("jsonoutput", jsonOutput);
+        // console.log("workflow", workflow);
+        // console.log("jsonoutput", jsonOutput);
 
         if (!workflow) return {};
 

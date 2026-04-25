@@ -5,10 +5,11 @@ import { getServerSession } from "next-auth";
 import { getSubscriber } from "@/lib/redis-manager";
 import { getExecutionEngine, isWorkerModeEnabled } from "@/lib/execution/execution-engine";
 import { subscribeExecutionEvents } from "@/lib/execution/evevt-emitter";
+import { PublishPayloadDataType } from "@workspace/types";
 
 export const GET = async (req: NextRequest, { params }: { params: Promise<{ workflowId: string, projectId: string }> }) => {
     const { workflowId, projectId } = await params;
-    console.log("Received request to execute workflow");
+    // console.log("Received request to execute workflow");
     try {
         const session = await getServerSession(authOptions);
 
@@ -96,26 +97,39 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ work
                         return response;
                     });
                     const executionId = executionResponse.id;
-                    console.log("ExecutingID", executionId);
+                    // console.log("ExecutingID", executionId);
 
                     channel = `execution-${executionId}`;
 
                     const onExecutionMessage = async (message: string) => {
                         try {
-                            console.log(`Received message for ${executionId}`);
-                            controller.enqueue(encoder.encode(`data: ${message}\n\n`));
+                            const parsedMessage: PublishPayloadDataType = JSON.parse(message);
 
-                            const parsedMessage = JSON.parse(message);
-                            console.log("parsedMessage", parsedMessage);
+                            const isErrorState =
+                                parsedMessage.status === "ERROR" ||
+                                parsedMessage.status === "CANCELLED" ||
+                                parsedMessage.status === "CRASHED";
 
-                            if (
-                                parsedMessage.status === "SUCCESS" ||
-                                parsedMessage.status === "FAILED" ||
-                                parsedMessage.status === "ERROR"
-                            ) {
-                                console.log(
-                                    `Workflow ${executionId} finished with status: ${parsedMessage.status}`
+                            const enhancedPayload = {
+                                ...parsedMessage,
+                                ui: {
+                                    showPopup: isErrorState,
+                                    type: parsedMessage.status, // for styling (error, warning, etc.)
+                                },
+                            };
+
+                            const eventType = isErrorState ? "workflow-error" : "workflow-update";
+
+                            if (!isClosed) {
+                                controller.enqueue(
+                                    encoder.encode(`event: ${eventType}\ndata: ${JSON.stringify(enhancedPayload)}\n\n`)
                                 );
+                            }
+
+                            const isTerminal = parsedMessage.status === "SUCCESS" || isErrorState;
+
+                            if (isTerminal) {
+                                console.log(`Workflow ${executionId} finished with status: ${parsedMessage.status}`);
 
                                 setTimeout(async () => {
                                     await cleanup();
@@ -128,21 +142,19 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ work
                     };
 
                     if (workersEnabled && subscriber) {
-                        console.log(`Subscribing to redis channel: ${channel}`);
+                        // console.log(`Subscribing to redis channel: ${channel}`);
                         await subscriber.subscribe(channel, onExecutionMessage);
                     } else {
-                        console.log(`Subscribing to in-memory channel: ${channel}`);
+                        // console.log(`Subscribing to in-memory channel: ${channel}`);
                         unsubscribeInMemory = subscribeExecutionEvents(
                             executionId,
                             onExecutionMessage
                         );
                     }
 
-                    await new Promise((resolve) => setTimeout(resolve, 100));
+                    // await new Promise((resolve) => setTimeout(resolve, 100));
 
-                    console.log(
-                        `Dispatching execution ${executionId} (workersEnabled=${workersEnabled})`
-                    );
+                    // console.log(`Dispatching execution ${executionId} (workersEnabled=${workersEnabled})`);
                     await executionEngine.execute({
                         workflowId,
                         executionId,
@@ -150,9 +162,11 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ work
                     });
 
                     req.signal.addEventListener("abort", async () => {
-                        console.log(`Client disconnected for execution ${executionId}`);
+                        // console.log(`Client disconnected for execution ${executionId}`);
                         await cleanup();
+                        safeClose();
                     });
+
                 } catch (error) {
                     console.error("Error in stream start:", error);
                     controller.enqueue(
@@ -180,7 +194,7 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ work
             },
         });
 
-        console.log(stream);
+        // console.log(stream);
 
 
         return new Response(stream, {
