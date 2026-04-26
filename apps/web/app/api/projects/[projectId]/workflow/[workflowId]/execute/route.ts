@@ -110,26 +110,21 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ work
                                 parsedMessage.status === "CANCELLED" ||
                                 parsedMessage.status === "CRASHED";
 
-                            const enhancedPayload = {
-                                ...parsedMessage,
-                                ui: {
-                                    showPopup: isErrorState,
-                                    type: parsedMessage.status, // for styling (error, warning, etc.)
-                                },
-                            };
-
                             const eventType = isErrorState ? "workflow-error" : "workflow-update";
 
                             if (!isClosed) {
                                 controller.enqueue(
-                                    encoder.encode(`event: ${eventType}\ndata: ${JSON.stringify(enhancedPayload)}\n\n`)
+                                    encoder.encode(`event: ${eventType}\ndata: ${JSON.stringify(parsedMessage)}\n\n`)
                                 );
                             }
 
-                            const isTerminal = parsedMessage.status === "SUCCESS" || isErrorState;
+                            const isTerminal =
+                                parsedMessage.status === "FINISHED" ||
+                                parsedMessage.status === "CANCELLED" ||
+                                parsedMessage.status === "CRASHED";
 
                             if (isTerminal) {
-                                console.log(`Workflow ${executionId} finished with status: ${parsedMessage.status}`);
+                                // console.log(`Workflow ${executionId} finished with status: ${parsedMessage.status}`);
 
                                 setTimeout(async () => {
                                     await cleanup();

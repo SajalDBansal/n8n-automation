@@ -46,7 +46,7 @@ export default function NodeConfigDrawer({
     useEffect(() => {
         if (!nodeData || !nodeData.id) return;
         const inputs = workflowStore.getInputsForNode(nodeData.id);
-        console.log(inputs);
+        // console.log(inputs);
 
         setNodeInputs(inputs);
     }, [nodeData, setNodeInputs, workflowStore]);

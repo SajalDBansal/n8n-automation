@@ -29,10 +29,6 @@ interface ExecutionMessage {
         nodeName: string;
         nodeStatus: NodeStatus;
     }
-    ui?: {
-        showPopup: boolean;
-        type: ExecutionStatusType;
-    }
     executionId: string;
     workflowId?: string;
     status: ExecutionStatusType;
@@ -236,8 +232,6 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
 
     const isValidConnection: IsValidConnection = useCallback((conn) => {
         const { source, target } = conn;
-        console.log(conn);
-
 
         const sourceHandle = conn.sourceHandle ?? undefined;
         const targetHandle = conn.targetHandle ?? undefined;
@@ -400,8 +394,14 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
         try {
             const res = await saveWorkflow(projectId, workflowId);
 
-            // workflowStore.setWorkflow(res.data.workflow);
-            savedSnapshotRef.current = currentSnapshot;
+            const latestSnapshot = createSnapshotString(
+                nodes,
+                edges,
+                workflow,
+                projectId
+            );
+
+            savedSnapshotRef.current = latestSnapshot;
             setHasUnsavedChanges(false);
 
         } catch (error) {
@@ -418,22 +418,20 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
         setExecutionLogs([]);
         setIsExecuting(true);
 
-        toast.loading('Starting workflow execution...', {
-            id: 'workflow-execution',
-            duration: 2000,
-        });
-
         const eventSource = new EventSource("/api/projects/" + projectId + "/workflow/" + workflowId + "/execute");
 
         eventSource.onopen = (event) => {
-            // console.log("Connection opened:", event);
-            toast.success('Workflow execution started', {
-                id: 'workflow-execution',
-            });
+            console.log("Connection opened:", event);
+            // toast.success('Workflow execution started', {
+            //     id: 'workflow-execution',
+            // });
         }
+
+        let toastId: string | number = 0;
 
         eventSource.addEventListener("workflow-update", (event) => {
             const data: ExecutionMessage = JSON.parse(event.data);
+            console.log(data);
 
             setExecutionLogs((logs) => [...logs, data]);
 
@@ -461,35 +459,85 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
                 }
             }
 
-            // SUCCESS handling
+            // STARTING handling
+            if (data.status === "STARTING") {
+                workflowStore.setJsonOutputs(data.json!);
+                setExecutionOutput(data.json);
+
+                toast.success(data.message);
+            }
+
+            if (data.status === "RUNNING") {
+                workflowStore.setJsonOutputs(data.json!);
+                setExecutionOutput(data.json);
+
+                if (data.nodeData) {
+                    toast.info(data.message);
+                } else {
+                    toastId = toast.loading(data.message);
+                }
+            }
+
             if (data.status === "SUCCESS") {
+                workflowStore.setJsonOutputs(data.json!);
+                setExecutionOutput(data.json);
+
+                toast.success(data.message);
+            }
+
+            // SUCCESS handling
+            if (data.status === "FINISHED") {
                 setIsExecuting(false);
                 eventSource.close();
 
                 workflowStore.setJsonOutputs(data.json!);
                 setExecutionOutput(data.json);
 
-                toast.success('Workflow executed successfully!');
+                toast.success('Workflow executed Successfully!', { id: toastId });
             }
         });
 
         eventSource.addEventListener("workflow-error", (event) => {
             const data: ExecutionMessage = JSON.parse(event.data);
+            console.log(data);
 
             setExecutionLogs((logs) => [...logs, data]);
             setIsExecuting(false);
             eventSource.close();
 
-            // 🔥 USE BACKEND SIGNAL
-            if (data.ui?.showPopup) {
-                toast.error(data.message || "Workflow failed", {
-                    duration: 8000,
-                    style: {
-                        maxWidth: '500px',
-                        whiteSpace: 'pre-line',
+            if (data.nodeData) {
+                const nodeData = data.nodeData;
+
+                setNodeExecutionStates((prev) => ({
+                    ...prev,
+                    [nodeData.nodeId!]: {
+                        status: nodeData.nodeStatus as NodeStatus,
+                        message: data.message,
+                        response: data.response,
                     },
-                });
+                }));
+
+                // Node-level failure toast (keep this)
+                if (nodeData.nodeStatus === NodeStatus.failed) {
+                    toast.error(
+                        `Node "${nodeData.nodeName}" failed:\n${data.message}`,
+                        {
+                            duration: 8000,
+                            style: { maxWidth: '500px', whiteSpace: 'pre-line' },
+                        }
+                    );
+                }
             }
+
+            toast.error(`Workflow failed: ${data.message}`, {
+                duration: 8000,
+                id: toastId,
+                style: {
+                    maxWidth: '500px',
+                    whiteSpace: 'pre-line',
+
+                }
+            });
 
             // Optional: still store outputs if present
             if (data.json) {
@@ -507,7 +555,6 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
             });
         };
     }
-
 
     const handleNodeModalClose = () => {
         setIsNodeConfigModelOpen(false);

@@ -1,4 +1,5 @@
-import { NodeOutputDataType } from "@workspace/types";
+import type { NodeOutputDataType } from "@workspace/types";
+
 
 export class ExpressionResolver {
     private nodeOutputs: NodeOutputDataType;

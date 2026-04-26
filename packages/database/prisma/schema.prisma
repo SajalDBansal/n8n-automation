@@ -142,6 +142,7 @@ enum ExecutionStatus {
   STARTING
   SUCCESS
   RUNNING
+  FINISHED
   // WAITING
   // RETRYING
   // NEW

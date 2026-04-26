@@ -112,10 +112,11 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
         if (!workflow) return;
 
         const newNodes = nodes.map((node) => {
-            delete node.data.engine;
+            const { engine, ...cleanData } = node.data || {};
 
             return {
                 ...node,
+                data: cleanData,
                 positionX: node.position.x,
                 positionY: node.position.y,
             }
@@ -131,8 +132,6 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
                 projectId: projectId
             };
 
-            console.log(payload);
-
             const res = await axios.patch(
                 `/api/projects/${projectId}/workflow/${workflowId}/update`,
                 payload
@@ -143,8 +142,12 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
                 return;
             }
 
-            set({ workflow: res.data.workflow });
-            useWorkflowStore.getState().setWorkflow(workflow);
+            set((state) => ({
+                workflow: state.workflow
+                    ? { ...state.workflow, ...res.data.workflow }
+                    : res.data.workflow
+            }));
+            useWorkflowStore.getState().setWorkflow(res.data.workflow);
 
         } catch (err) {
             set({ error: "Failed to save workflow" });

@@ -1,10 +1,40 @@
-import type { Edge, ExecutionEventPublisher, ExecutionRunTimeInput, Node, NodeExecutionBasePayload, PublishPayloadDataType } from "@workspace/types";
+import type { Edge, ExecutionEventPublisher, ExecutionRunTimeInput, ExecutionStatusType, Node, NodeExecutionBasePayload, PublishPayloadDataType } from "@workspace/types";
 import { NodeStatus } from "@workspace/types";
 import { NodeOutput } from "./node-output";
 import { updateExecutionStatusInDB } from "./db-helper";
 import { constructErrorMessage } from "./error-provider";
 import { ExpressionResolver } from "./expression-resolver";
 import { predefinedNodesStructure } from "./execute-provider";
+import pLimit from "p-limit";
+
+const limit = pLimit(5);
+
+class NodeExecutionError extends Error {
+    type: "VALIDATION" | "EXECUTION" | "SYSTEM";
+    isRetryable: boolean;
+    shouldCancelFlow: boolean;
+
+    constructor({
+        type,
+        message,
+        isRetryable = false,
+        shouldCancelFlow = false
+    }: {
+        type: "VALIDATION" | "EXECUTION" | "SYSTEM";
+        message: string;
+        isRetryable?: boolean;
+        shouldCancelFlow?: boolean;
+    }) {
+        super(message);
+        this.type = type;
+        this.isRetryable = isRetryable;
+        this.shouldCancelFlow = shouldCancelFlow;
+    }
+}
+
+
+// have to add system that checks if the branch fails let the other branchs complete before sending fail publish
+// check for resolver function when the fields have data of only parameters it display null for child nodes
 
 export class WorkFlowRunner {
     workflowId: string | null = null;
@@ -18,6 +48,7 @@ export class WorkFlowRunner {
     // Graph for execution traversal Kahns algorithim
     private inDegree = new Map<string, number>();
     private adjacentList = new Map<string, string[]>();
+    private blockedNodes = new Set<string>();
 
     // for fast node traversal
     private nodeMap = new Map<string, Node>()
@@ -55,6 +86,18 @@ export class WorkFlowRunner {
         await this.publisher.publish(payload);
     }
 
+    private normalizeError(error: any): NodeExecutionError {
+        if (error instanceof NodeExecutionError) return error;
+
+        const message = constructErrorMessage(error);
+
+        return new NodeExecutionError({
+            type: "EXECUTION",
+            message,
+            isRetryable: true
+        });
+    }
+
     private buildGraph() {
         // get the id of all the connect nodes
         const connectedNodesId = new Set<string>();
@@ -67,10 +110,12 @@ export class WorkFlowRunner {
         const disconnectedNodes = this.nodes.filter(node => !connectedNodesId.has(node.id));
 
         if (disconnectedNodes.length > 0) {
-            const message = `Disconnected nodes are not allowed: ${disconnectedNodes.map(n => n.name).join(", ")}`;
-
             console.warn("Disconnected nodes: ", disconnectedNodes);
-            throw new Error(message);
+            throw new NodeExecutionError({
+                type: "VALIDATION",
+                message: `Disconnected nodes are not allowed: ${disconnectedNodes.map(n => n.name).join(", ")}`,
+                shouldCancelFlow: true
+            });
         }
 
         for (const node of this.nodes) {
@@ -81,8 +126,20 @@ export class WorkFlowRunner {
         for (const edge of this.edges) {
             const { source, target } = edge;
 
+            if (source === target) {
+                throw new NodeExecutionError({
+                    type: "VALIDATION",
+                    message: `Self-loop detected at node: ${source}`,
+                    shouldCancelFlow: true
+                });
+            }
+
             if (!this.nodeMap.has(source) || !this.nodeMap.has(target)) {
-                throw new Error(`Invalid edge: ${edge.source} -> ${edge.target}`);
+                throw new NodeExecutionError({
+                    type: "SYSTEM",
+                    message: `Invalid edge: ${edge.source} -> ${edge.target}`,
+                    shouldCancelFlow: true
+                });
             }
 
             this.adjacentList.get(source)?.push(target);
@@ -90,361 +147,605 @@ export class WorkFlowRunner {
         }
     }
 
-    private async validateGraph() {
+    private validateGraph() {
         const startNodes = this.nodes.filter((node) => (this.inDegree.get(node.id) || 0) === 0);
 
         if (startNodes.length === 0) {
-            const message = "No starting nodes found (possible cycle or invalid graph)";
-            throw new Error(message);
+            throw new NodeExecutionError({
+                type: "VALIDATION",
+                message: "No starting nodes found (possible cycle or invalid graph)",
+                shouldCancelFlow: true
+            });
         }
 
         const invalidStartNodes = startNodes.filter(
             (node) => node.type !== "TRIGGER" && node.type !== "WEBHOOK")
 
         if (invalidStartNodes.length > 0) {
-            const message = `Invalid workflow: Non-trigger nodes found as entry points (${invalidStartNodes.map(n => n.name).join(", ")})`
-
-            console.warn(message);
-            throw new Error(message);
+            throw new NodeExecutionError({
+                type: "VALIDATION",
+                message: `Invalid workflow: Non-trigger nodes as entry (${invalidStartNodes.map(n => n.name).join(", ")})`,
+                shouldCancelFlow: true
+            });
         }
 
-        // use kahns algorithim to check if the graph is traversable
-        // if the graph traversal fails use dfs to check if any cycle present
-        // if cycle then return cycle path error
-        // if no cycle return kahns fail error
+        const tempInDegree = new Map(this.inDegree);
+        const queue = [...startNodes.map(n => n.id)];
+        let processedCount = 0;
 
+        while (queue.length > 0) {
+            const nodeId = queue.shift()!;
+            processedCount++;
+            for (const childNodeId of this.adjacentList.get(nodeId) || []) {
+                const deg = (tempInDegree.get(childNodeId) || 0) - 1;
+                tempInDegree.set(childNodeId, deg);
+                if (deg === 0) queue.push(childNodeId);
+            }
+        }
+
+        if (processedCount !== this.inDegree.size) {
+            const cycle = this.findCycle();
+            throw new NodeExecutionError({
+                type: "VALIDATION",
+                message: cycle ? `Cycle detected: ${cycle.join(" → ")}` : "Cycle detected",
+                shouldCancelFlow: true
+            });
+        }
+    }
+
+    private findCycle() {
+        const visited = new Set<string>();
+        const stack = new Set<string>();
+        const parent = new Map<string, string | null>();
+
+        const dfs = (nodeId: string): string[] | null => {
+            visited.add(nodeId);
+            stack.add(nodeId);
+
+            for (const neighborId of this.adjacentList.get(nodeId) || []) {
+                // case 1: is node is unvisited
+                if (!visited.has(neighborId)) {
+                    parent.set(neighborId, nodeId);
+                    const cycyle = dfs(neighborId);
+                    if (cycyle) return cycyle;
+                }
+                // get cycle if found
+                else if (stack.has(neighborId)) {
+                    // recounstruct cycle path
+                    const cycle: string[] = [neighborId];
+                    let currentNodeID: string | null = nodeId;
+
+                    while (currentNodeID && currentNodeID !== neighborId) {
+                        cycle.push(currentNodeID);
+                        currentNodeID = parent.get(currentNodeID) || null;
+                    }
+
+                    cycle.push(neighborId);
+                    cycle.reverse();
+
+                    return cycle;
+                }
+            }
+
+            stack.delete(nodeId);
+            return null;
+        }
+
+        for (const node of this.nodes) {
+            if (!visited.has(node.id)) {
+                parent.set(node.id, null);
+                const cycle = dfs(node.id);
+                if (cycle) return cycle;
+            }
+        }
+
+        return null;
     }
 
     async run() {
-        // console.log("Executing Workflow", this.nodes);
-        await updateExecutionStatusInDB(this.executionId!, "RUNNING");
-
-
-
-        const triggerNode = this.nodes.find((node) => node.type === "TRIGGER" || node.type === "WEBHOOK");
-
-        const commonPaylod: NodeExecutionBasePayload = {
-            executionId: this.executionId,
-            workflowId: this.workflowId,
-            projectId: this.projectId
-        }
-
-        if (!triggerNode) {
-            await updateExecutionStatusInDB(this.executionId!, "ERROR", true);
-            await this.publish({
-                ...commonPaylod,
-                status: "CRASHED",
-                message: "No Trigger Node Found For Execution",
-            });
-            return;
-        }
+        await updateExecutionStatusInDB(this.executionId!, "STARTING");
+        await this.publish({
+            ...this.basePayload,
+            status: "STARTING",
+            message: "Workflow Execution Started"
+        })
 
         try {
             this.buildGraph();
+            this.validateGraph();
 
-            await this.executeNode(triggerNode);
+            await updateExecutionStatusInDB(this.executionId!, "RUNNING");
+            await this.publish({
+                ...this.basePayload,
+                status: "RUNNING",
+                json: this.nodeOutputs.json,
+                message: "Workflow Execution Running"
+            })
 
-            // console.info("Workflow execution completed successfully");
+            const queue: string[] = [];
+            for (const [nodeId, degree] of this.inDegree.entries()) {
+                if (degree === 0) queue.push(nodeId);
+            }
+
+            await this.processExecutionQueue(queue);
+
             await updateExecutionStatusInDB(this.executionId!, "SUCCESS", true);
             await this.publish({
-                ...commonPaylod,
-                status: "SUCCESS",
+                ...this.basePayload,
+                status: "FINISHED",
                 json: this.nodeOutputs.json,
                 message: "Workflow Execution Finished Successfully"
             })
-        } catch (error) {
-            await updateExecutionStatusInDB(this.executionId!, "ERROR", true);
-            const errorMessage = constructErrorMessage(error);
-            console.error("Workflow execution failed:", errorMessage);
+
+        } catch (err) {
+            const error = this.normalizeError(err);
+
+            let status: "CRASHED" | "ERROR" | "CANCELLED" = "ERROR";
+
+            if (error.type === "SYSTEM") status = "CRASHED";
+            if (error.shouldCancelFlow) status = "CANCELLED";
+
+            await updateExecutionStatusInDB(this.executionId!, status, true);
+
             await this.publish({
-                ...commonPaylod,
-                status: "CANCELLED",
+                ...this.basePayload,
+                status,
                 json: this.nodeOutputs.json,
-                message: errorMessage
-            })
+                message: error.message
+            });
         }
 
+    }
+
+    async processExecutionQueue(queue: string[]) {
+        while (queue.length > 0) {
+            const currentBatchNodes = [...queue];
+            queue.length = 0;
+
+            const executableNodes = currentBatchNodes.filter(nodeId => !this.blockedNodes.has(nodeId));
+
+            if (executableNodes.length === 0) {
+                console.warn("No executable nodes left — possible full branch failure");
+                break;
+            };
+
+            const result = await Promise.all(
+                executableNodes.map(nodeId =>
+                    limit(async () => {
+                        const node = this.nodeMap.get(nodeId);
+                        if (!node) {
+                            throw new NodeExecutionError({
+                                type: "SYSTEM",
+                                message: `Node not found: ${nodeId}`,
+                                shouldCancelFlow: true
+                            });
+                        };
+
+                        try {
+                            await this.executeNodeWithRetries(node);
+                            return { nodeId, success: true };
+                        } catch (err) {
+                            const error = this.normalizeError(err);
+
+                            if (error.shouldCancelFlow) {
+                                // 🔥 propagate immediately (DO NOT swallow)
+                                throw error;
+                            }
+
+                            return {
+                                nodeId,
+                                success: false,
+                                errorMessage: error.message,
+                                errorType: error.type,
+                                shouldCancelFlow: error.shouldCancelFlow
+                            };
+                        }
+                    })
+                )
+            )
+
+            const nextNodes: string[] = [];
+
+            for (const r of result) {
+                const { nodeId, success, errorMessage, errorType, shouldCancelFlow } = r;
+
+                const children = this.adjacentList.get(nodeId) || [];
+
+                if (!success) {
+
+                    await this.markBranchBlocked(nodeId, errorMessage!, errorType!);
+                    continue;
+                }
+
+                nextNodes.push(...children);
+            }
+
+            for (const childId of nextNodes) {
+                if (this.blockedNodes.has(childId)) continue;
+
+                const newDegree = (this.inDegree.get(childId) || 0) - 1;
+                this.inDegree.set(childId, newDegree);
+
+                if (newDegree === 0) queue.push(childId);
+            }
+        }
+    }
+
+    private async publishNodeFailure(nodeId: string, error: string, type: "VALIDATION" | "EXECUTION" | "SYSTEM" = "EXECUTION") {
+        const node = this.nodeMap.get(nodeId);
+        if (!node) return;
+
+        const status: ExecutionStatusType =
+            type === "VALIDATION" ? "CANCELLED" :
+                type === "SYSTEM" ? "CRASHED" :
+                    "ERROR";
+
+        await this.publish({
+            ...this.basePayload,
+            nodeData: {
+                nodeId: node.id,
+                nodeName: node.name,
+                nodeStatus: NodeStatus.failed
+            },
+            status,
+            message: error,
+            json: this.nodeOutputs.json
+        });
+    }
+
+    private async markBranchBlocked(nodeId: string, error: string, errorType: "VALIDATION" | "EXECUTION" | "SYSTEM") {
+        const stack = [...(this.adjacentList.get(nodeId) || [])];
+
+        while (stack.length > 0) {
+            const current = stack.pop()!;
+
+            const nodeData = this.nodeMap.get(current);
+            if (!nodeData) continue;
+
+            const status: ExecutionStatusType = errorType === "VALIDATION" ? "CANCELLED" : errorType === "EXECUTION" ? "ERROR" : "CRASHED";
+
+            await this.publish({
+                ...this.basePayload,
+                nodeData: {
+                    nodeId: nodeData.id,
+                    nodeName: nodeData.name,
+                    nodeStatus: NodeStatus.skipped
+                },
+                status: status,
+                json: this.nodeOutputs.json,
+                message: `${errorType}: Skipped due to upstream failure: ${error}`
+            });
+
+            const children = this.adjacentList.get(current) || [];
+
+            for (const child of children) {
+                if (!this.blockedNodes.has(child)) {
+                    this.blockedNodes.add(child);
+                    stack.push(child);
+                }
+            }
+        }
+    }
+
+    async executeNodeWithRetries(node: Node) {
+        const maxRetries = 3;
+        let attempt = 0;
+
+        const commonPayload: NodeExecutionBasePayload = {
+            nodeData: {
+                nodeId: node.id,
+                nodeName: node.name,
+                nodeStatus: NodeStatus.executing
+            },
+            ...this.basePayload
+        };
+
+        while (attempt < maxRetries) {
+
+            try {
+
+                await this.publish({
+                    ...commonPayload,
+                    status: "RUNNING",
+                    message: `Executing node ${node.name}`
+                });
+
+                await this.executeNode(node);
+
+                await this.publish({
+                    ...commonPayload,
+                    status: "SUCCESS",
+                    message: `Node ${node.name} executed successfully`,
+                    nodeData: {
+                        ...commonPayload.nodeData!,
+                        nodeStatus: NodeStatus.success
+                    },
+                    json: this.nodeOutputs.json
+                });
+
+                return;
+            } catch (err: any) {
+                const error = this.normalizeError(err);
+                console.log("Publising");
+
+
+                if (error.type === "VALIDATION") {
+
+                    await this.publishNodeFailure(node.id, error.message, error.type);
+
+                    throw error;
+                }
+
+                if (!error.isRetryable) {
+                    throw error;
+                }
+
+                attempt++;
+
+                if (attempt >= maxRetries) {
+                    await this.publish({
+                        ...commonPayload,
+                        status: "ERROR",
+                        message: error.message,
+                        nodeData: {
+                            ...commonPayload.nodeData!,
+                            nodeStatus: NodeStatus.failed
+                        },
+                        json: this.nodeOutputs.json
+                    });
+
+                    throw error;
+                }
+
+                const delay = 500 * Math.pow(2, attempt);
+                await new Promise(res => setTimeout(res, delay));
+            }
+        }
     }
 
     async executeNode(currentNode: Node | null) {
         if (!currentNode) return;
 
-        const commonPaylod: NodeExecutionBasePayload = {
-            nodeData: {
-                nodeId: currentNode.id,
-                nodeName: currentNode.name,
-                nodeStatus: NodeStatus.executing
-            },
-            executionId: this.executionId,
-            workflowId: this.workflowId,
-            projectId: this.projectId
-        }
-
-        await this.publish({
-            ...commonPaylod,
-            status: "RUNNING",
-            message: `Executing Workflow Node: ${currentNode.name}`,
-        })
-
         try {
             // skipping the LMCHAT execution for Workflow ???
             if (currentNode.name.includes("lmChat") || currentNode.type === "CHAT_MODEL") {
-                console.info(`Skipping the model node ${currentNode.name} in the Execution Workflow`);
-
                 await this.publish({
-                    ...commonPaylod,
+                    ...this.basePayload,
                     status: "RUNNING",
-                    message: "Model Node Should Be Connected To Agent Node",
-                    nodeData: commonPaylod.nodeData ? {
-                        ...commonPaylod.nodeData,
-                        nodeStatus: NodeStatus.failed
-                    } : undefined
-                })
-
-                // Get next connected node
-                const nextNode = this.getConnectedNode(currentNode);
-                await this.executeNode(nextNode);
+                    message: "Model Node executed via Agent",
+                    nodeData: {
+                        nodeId: currentNode.id,
+                        nodeName: currentNode.name,
+                        nodeStatus: NodeStatus.skipped
+                    }
+                });
                 return;
             }
 
-            // execute self node
-            await this.executeNodeByType(currentNode, commonPaylod);
+            await this.executeNodeByType(currentNode);
 
-            // execute all child nodes
-            const childNodes = this.getConnectedChildNodes(currentNode);
-            if (childNodes.length > 0) {
-                for (const child of childNodes) {
-                    await this.executeNode(child.node);
-                }
-            }
+        } catch (err) {
+            const error = this.normalizeError(err);
 
-        } catch (error) {
-            console.error(`Error Executing Workflow Node: ${currentNode.name}`, error);
-            const errorMessage = constructErrorMessage(error);
             await this.publish({
-                ...commonPaylod,
-                status: "CRASHED",
-                message: `Workflow Execution failed at Node ${currentNode.name}: ${errorMessage}`,
-                json: this.nodeOutputs.json,
-                error: errorMessage,
-                nodeData: commonPaylod.nodeData ? {
-                    ...commonPaylod.nodeData,
+                ...this.basePayload,
+                nodeData: {
+                    nodeId: currentNode.id,
+                    nodeName: currentNode.name,
                     nodeStatus: NodeStatus.failed
-                } : undefined
-            })
+                },
+                status: error.type === "VALIDATION" ? "CANCELLED" : error.type === "SYSTEM" ? "CRASHED" : "ERROR",
+                message: error.message,
+                json: this.nodeOutputs.json
+            });
 
-            throw error;
+            throw new NodeExecutionError(error);
         }
     }
 
-    async executeNodeByType(currentNode: Node, commonPayload: NodeExecutionBasePayload) {
+    async executeNodeByType(currentNode: Node) {
         const resolver = new ExpressionResolver(this.nodeOutputs.getOutputForResolver());
         const resolvedParameters = resolver.resolveParameters(currentNode.parameters);
 
-        // console.log("Original Parameters", currentNode.parameters);
-        // console.log("Resolved Parameters", resolvedParameters);
+        console.log("all resolved otuputs", this.nodeOutputs.getOutputForResolver());
 
-        switch (currentNode.name) {
-            case "manualTrigger":
-                await this.publish({
-                    ...commonPayload,
-                    status: "RUNNING",
-                    message: "Manual Trigger Node",
-                    nodeData: commonPayload.nodeData ? {
-                        ...commonPayload.nodeData,
-                        nodeStatus: NodeStatus.success
-                    } : undefined
-                })
 
-                this.nodeOutputs.addOutput({
-                    nodeId: currentNode.id,
-                    nodeName: currentNode.name,
-                    json: currentNode.parameters
-                })
+        try {
+            switch (currentNode.name) {
+                case "manualTrigger":
 
-                break;
-
-            case "webhook":
-                await this.publish({
-                    ...commonPayload,
-                    status: "RUNNING",
-                    message: "Webhook Node",
-                    nodeData: commonPayload.nodeData ? {
-                        ...commonPayload.nodeData,
-                        nodeStatus: NodeStatus.success
-                    } : undefined
-                });
-
-                this.nodeOutputs.addOutput({
-                    nodeId: currentNode.id,
-                    nodeName: currentNode.name,
-                    json: currentNode.parameters,
-                });
-
-                break;
-
-            case "agent":
-                const agent = predefinedNodesStructure.agent;
-
-                if (!agent || !agent.type) {
-                    throw new Error("Agent node type not found or not properly configured");
-                }
-
-                const suppliedModelResult = await this.getConnectModel(currentNode);
-
-                if (!suppliedModelResult.success) {
-                    throw new Error(suppliedModelResult.error || "Failed to connect to model");
-                }
-
-                const modelCommonPayload: NodeExecutionBasePayload = {
-                    nodeData: {
-                        nodeId: suppliedModelResult.modeNodeId!,
+                    this.nodeOutputs.addOutput({
+                        nodeId: currentNode.id,
                         nodeName: currentNode.name,
-                        nodeStatus: NodeStatus.executing
-                    },
-                    executionId: this.executionId,
-                    workflowId: this.workflowId,
-                    projectId: this.projectId
-                }
+                        json: currentNode.parameters
+                    })
 
-                await this.publish({
-                    ...modelCommonPayload,
-                    status: "RUNNING",
-                    message: `Executing Agent Node: ${currentNode.name}`,
-                })
+                    break;
 
-                if (!agent.type.execute) {
-                    throw new Error("Agent node type does not have execute method");
-                }
+                case "webhook":
 
-                const agentResponse = await agent.type.execute({
-                    parameters: resolvedParameters,
-                    model: suppliedModelResult.model
-                });
+                    this.nodeOutputs.addOutput({
+                        nodeId: currentNode.id,
+                        nodeName: currentNode.name,
+                        json: currentNode.parameters,
+                    });
 
-                if (!agentResponse || !agentResponse.success) {
-                    throw new Error(agentResponse.error || "Agent node execution failed");
-                }
+                    break;
 
-                const finalResult = {
-                    output: agentResponse.data?.output,
-                    message: "Agent processed prompt using connected model",
-                };
+                case "agent":
+                    const agent = predefinedNodesStructure.agent;
 
-                await this.publish({
-                    ...commonPayload,
-                    status: "RUNNING",
-                    message: "Agent Node",
-                    response: { data: finalResult },
-                    nodeData: commonPayload.nodeData ? {
-                        ...commonPayload.nodeData,
-                        nodeStatus: NodeStatus.success
-                    } : undefined
-                });
+                    if (!agent || !agent.type) {
+                        throw new NodeExecutionError({
+                            type: "SYSTEM",
+                            message: "Agent node type not configured",
+                            shouldCancelFlow: true
+                        });
+                    }
 
-                await this.publish({
-                    ...modelCommonPayload,
-                    status: "RUNNING",
-                    message: `Agent Node: ${currentNode.name} completed`,
-                    nodeData: modelCommonPayload.nodeData ? {
-                        ...modelCommonPayload.nodeData,
-                        nodeStatus: NodeStatus.success
-                    } : undefined
-                })
+                    const suppliedModelResult = await this.getConnectModel(currentNode);
 
-                this.nodeOutputs.addOutput({
-                    nodeId: currentNode.id,
-                    nodeName: currentNode.name,
-                    json: { output: agentResponse.data.output },
-                });
+                    if (!suppliedModelResult.success) {
+                        throw new NodeExecutionError({
+                            type: "VALIDATION",
+                            message: suppliedModelResult.error || "Failed to connect to model",
+                            shouldCancelFlow: true
+                        });
+                    }
 
-                break;
+                    const modelCommonPayload: NodeExecutionBasePayload = {
+                        nodeData: {
+                            nodeId: suppliedModelResult.modeNodeId!,
+                            nodeName: currentNode.name,
+                            nodeStatus: NodeStatus.executing
+                        },
+                        executionId: this.executionId,
+                        workflowId: this.workflowId,
+                        projectId: this.projectId
+                    }
 
-            case "telegram":
-                const telegram = predefinedNodesStructure.telegram;
+                    if (!agent.type.execute) {
+                        throw new Error("Agent node type does not have execute method");
+                    }
 
-                if (!telegram || !telegram.type) {
-                    throw new Error(
-                        "Telegram node type not found or not properly configured"
-                    );
-                }
+                    const agentResponse = await agent.type.execute({
+                        parameters: resolvedParameters,
+                        model: suppliedModelResult.model
+                    });
 
-                if (!telegram.type.execute) {
-                    throw new Error("Telegram node type does not have execute method");
-                }
+                    if (!agentResponse || !agentResponse.success) {
+                        throw new NodeExecutionError({
+                            type: "EXECUTION",
+                            message: agentResponse.error || "Agent execution failed",
+                            isRetryable: true
+                        });
+                    }
 
-                const telegramResponse = await telegram.type.execute({
-                    parameters: resolvedParameters,
-                    projectId: this.projectId!,
-                    credentialId: currentNode.credentialId!
-                });
+                    const finalResult = {
+                        output: agentResponse.data?.output,
+                        message: "Agent processed prompt using connected model",
+                    };
 
-                if (!telegramResponse || !telegramResponse.success) {
-                    throw new Error(telegramResponse.error || "Telegram node execution failed");
-                }
+                    // await this.publish({
+                    //     ...commonPayload,
+                    //     status: "RUNNING",
+                    //     message: "Agent Node",
+                    //     response: { data: finalResult },
+                    //     nodeData: commonPayload.nodeData ? {
+                    //         ...commonPayload.nodeData,
+                    //         nodeStatus: NodeStatus.success
+                    //     } : undefined
+                    // });
 
-                await this.publish({
-                    ...commonPayload,
-                    status: "RUNNING",
-                    message: "Telegram Node",
-                    response: { data: telegramResponse.data },
-                    nodeData: commonPayload.nodeData ? {
-                        ...commonPayload.nodeData,
-                        nodeStatus: NodeStatus.success
-                    } : undefined
-                })
+                    // await this.publish({
+                    //     ...modelCommonPayload,
+                    //     status: "RUNNING",
+                    //     message: `Agent Node: ${currentNode.name} completed`,
+                    //     nodeData: modelCommonPayload.nodeData ? {
+                    //         ...modelCommonPayload.nodeData,
+                    //         nodeStatus: NodeStatus.success
+                    //     } : undefined
+                    // })
 
-                this.nodeOutputs.addOutput({
-                    nodeId: currentNode.id,
-                    nodeName: currentNode.name,
-                    json: telegramResponse.data,
-                });
+                    this.nodeOutputs.addOutput({
+                        nodeId: currentNode.id,
+                        nodeName: currentNode.name,
+                        json: { output: agentResponse.data.output },
+                    });
 
-                break;
+                    break;
 
-            case "resend":
-                const resend = predefinedNodesStructure.resend;
+                case "telegram":
+                    const telegram = predefinedNodesStructure.telegram;
 
-                if (!resend || !resend.type) {
-                    throw new Error("Resend node type not found or not properly configured");
-                }
+                    if (!telegram || !telegram.type) {
+                        throw new NodeExecutionError({
+                            type: "SYSTEM",
+                            message: "Telegram node type does not have execute method",
+                            shouldCancelFlow: true
+                        });
+                    }
 
-                if (!resend.type.execute) {
-                    throw new Error("Resend node type does not have execute method");
-                }
+                    // ✅ VALIDATION LAYER (critical)
+                    if (!resolvedParameters || !resolvedParameters.chatId || !resolvedParameters.text) {
+                        throw new NodeExecutionError({
+                            type: "VALIDATION",
+                            message: "Telegram node requires 'chatId' and 'text' parameters",
+                            shouldCancelFlow: true,
+                            isRetryable: false
+                        });
+                    }
 
-                const resendResponse = await resend.type.execute({
-                    parameters: resolvedParameters,
-                    projectId: this.projectId!,
-                    credentialId: currentNode.credentialId!
-                });
+                    if (!telegram.type.execute) {
+                        throw new NodeExecutionError({
+                            type: "SYSTEM",
+                            message: "Telegram node does not implement execute",
+                            shouldCancelFlow: true
+                        });
+                    }
 
-                if (!resendResponse || !resendResponse.success) {
-                    throw new Error(resendResponse.error || "Resend node execution failed");
-                }
+                    const telegramResponse = await telegram.type.execute({
+                        parameters: resolvedParameters,
+                        projectId: this.projectId!,
+                        credentialId: currentNode.credentialId!
+                    });
 
-                await this.publish({
-                    ...commonPayload,
-                    status: "RUNNING",
-                    message: "Resend Node",
-                    response: { data: resendResponse.data },
-                    nodeData: commonPayload.nodeData ? {
-                        ...commonPayload.nodeData,
-                        nodeStatus: NodeStatus.success
-                    } : undefined
-                })
+                    if (!telegramResponse || !telegramResponse.success) {
+                        throw new NodeExecutionError({
+                            type: "EXECUTION",
+                            message: telegramResponse.error || "Telegram execution failed",
+                            isRetryable: true
+                        });
+                    }
 
-                this.nodeOutputs.addOutput({
-                    nodeId: currentNode.id,
-                    nodeName: currentNode.name,
-                    json: resendResponse.data,
-                });
+                    this.nodeOutputs.addOutput({
+                        nodeId: currentNode.id,
+                        nodeName: currentNode.name,
+                        json: telegramResponse.data,
+                    });
 
-                break;
+                    break;
 
-            default: throw new Error(`Unknown or Unsupported type: ${currentNode.name}`)
+                case "resend":
+                    const resend = predefinedNodesStructure.resend;
+
+                    if (!resend || !resend.type) {
+                        throw new Error("Resend node type not found or not properly configured");
+                    }
+
+                    if (!resend.type.execute) {
+                        throw new Error("Resend node type does not have execute method");
+                    }
+
+                    const resendResponse = await resend.type.execute({
+                        parameters: resolvedParameters,
+                        projectId: this.projectId!,
+                        credentialId: currentNode.credentialId!
+                    });
+
+                    if (!resendResponse || !resendResponse.success) {
+                        throw new NodeExecutionError({
+                            type: "EXECUTION",
+                            message: resendResponse.error || "Resend node execution failed",
+                            isRetryable: true
+                        });
+                    }
+
+                    this.nodeOutputs.addOutput({
+                        nodeId: currentNode.id,
+                        nodeName: currentNode.name,
+                        json: resendResponse.data,
+                    });
+
+                    break;
+
+                default: throw new Error(`Unknown or Unsupported type: ${currentNode.name}`)
+            }
+        } catch (err) {
+            const error = this.normalizeError(err);
+
+            throw new NodeExecutionError(error);
         }
-
     }
 
     getConnectedNode(currentNode: Node) {
@@ -480,11 +781,11 @@ export class WorkFlowRunner {
             child.node.name.includes("lmChat") || child.handleType === "chat-model");
 
         if (modelNodes.length === 0) {
-            return {
-                success: false,
-                model: null,
-                error: "Problem in node 'AI Agent'\nA Chat Model sub- node must be connected and enabled",
-            }
+            throw new NodeExecutionError({
+                type: "VALIDATION",
+                message: "AI Agent requires exactly one Chat Model node",
+                shouldCancelFlow: true
+            });
         }
 
         if (modelNodes.length > 1) {

@@ -53,7 +53,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             }, { status: 404 });
         }
 
-        await prisma.$transaction(async (tx) => {
+        const updatedFlow = await prisma.$transaction(async (tx) => {
 
             await tx.edge.deleteMany({ where: { workflowId: workflowId } });
             await tx.node.deleteMany({ where: { workflowId: workflowId } });
@@ -123,6 +123,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                     }
                 })
             }
+
+            const updatedWorkflow = await prisma.workflow.findFirst({
+                where: { id: workflowId },
+                include: { nodes: true, edges: true }
+            })
+
+            return updatedWorkflow;
         }, {
             maxWait: 10000, // wait up to 10s for a transaction slot
             timeout: 20000, // transaction lifetime = 20s
@@ -131,6 +138,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         return NextResponse.json({
             success: true,
             message: "Workflow Updates successfully",
+            workflow: updatedFlow
         }, { status: 200 })
 
     } catch (error) {

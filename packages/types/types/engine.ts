@@ -2,7 +2,7 @@ import { WorkflowType } from "./client";
 import { NodeType, NodeName } from "./node";
 import type { Node as RFNode, Edge as RFEdge } from "@xyflow/react";
 
-export type ExecutionStatusType = "CANCELLED" | "CRASHED" | "ERROR" | "STARTING" | "SUCCESS" | "RUNNING";
+export type ExecutionStatusType = "CANCELLED" | "CRASHED" | "ERROR" | "STARTING" | "SUCCESS" | "RUNNING" | "FINISHED";
 
 export type Node = {
     id: string;
@@ -62,6 +62,7 @@ export enum NodeStatus {
     success = "SUCCESS",
     failed = "FAILED",
     executing = "EXECUTING",
+    skipped = "SKIPPED",
     idle = "IDLE",
 }
 
@@ -84,6 +85,9 @@ export type NodeExecutionBasePayload = {
         nodeName: NodeName;
         nodeStatus: NodeStatus;
     }
+    // status?: ExecutionStatusType;
+    // message?: string;
+    // response?: Record<string, unknown>;
     executionId: string | null;
     workflowId: string | null;
     projectId: string | null;
@@ -98,7 +102,7 @@ export type PublishPayloadDataType = {
     executionId: string | null;
     workflowId: string | null;
     projectId: string | null;
-    status: string;
+    status: ExecutionStatusType;
     message: string;
     response?: Record<string, unknown>;
     json?: Record<string, unknown>;
