@@ -53,7 +53,7 @@ model Project {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  user        User         @relation(fields: [userId], references: [id])
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   workflows   Workflow[]
   credentials Credential[]
 
@@ -74,7 +74,7 @@ model Workflow {
   nodes      Node[]
   edges      Edge[]
   executions Execution[]
-  webhooks   webhook[]
+  webhooks   Webhook[]
 
   @@index([projectId])
 }
@@ -143,10 +143,6 @@ enum ExecutionStatus {
   SUCCESS
   RUNNING
   FINISHED
-  // WAITING
-  // RETRYING
-  // NEW
-  // UNKNOWN
 }
 
 model Execution {
@@ -166,7 +162,7 @@ model Execution {
   @@index([workflowId, createdAt])
 }
 
-model webhook {
+model Webhook {
   id      String  @id @default(cuid())
   url     String  @unique
   method  String?
