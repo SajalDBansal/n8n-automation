@@ -58,27 +58,28 @@ export function NodeIcon({ icon, size = 'md', className = '' }: NodeIconProps) {
   const { type, value, color } = icon;
   const iconClass = `${sizeClasses[size]} ${className}`;
   const iconColor = color || 'currentColor';
+  const colorClass = getNodeIconColor(color);
+
 
   switch (type) {
     case 'lucide': {
       const LucideComponent = lucideIcons[value];
       if (LucideComponent) {
-        return <LucideComponent className={iconClass} style={{ color: iconColor }} />;
+        return <LucideComponent className={`${iconClass} ${colorClass}`} />;
       }
       // Fallback if icon not found
-      return <Settings className={iconClass} style={{ color: iconColor }} />;
+      return <Settings className={`${iconClass} ${colorClass}`} />;
     }
 
     case 'font-awesome':
-      return <FontAwesomeIcon icon={value} className={iconClass} style={{ color: iconColor }} />;
+      return <FontAwesomeIcon icon={value} className={`${iconClass} ${colorClass}`} />;
 
     case 'file': {
       // Handle theme-based icons (light/dark variants)
       if (icon.light || icon.dark) {
         const iconFile = icon.light || icon.value;
-        console.log(value);
         return (
-          <Image  // #todo: here i should use next/image
+          <Image
             src={`/node-icons/${iconFile}`}
             alt="Node icon"
             className={iconClass}
@@ -89,7 +90,7 @@ export function NodeIcon({ icon, size = 'md', className = '' }: NodeIconProps) {
 
       // Single file icon
       return (
-        <img
+        <Image
           src={`/node-icons/${value}`}
           alt="Node icon"
           className={iconClass}
@@ -100,7 +101,7 @@ export function NodeIcon({ icon, size = 'md', className = '' }: NodeIconProps) {
 
     case 'url':
       return (
-        <img  // #todo: here i should use next/image
+        <Image
           src={value}
           alt="Node icon"
           className={iconClass}

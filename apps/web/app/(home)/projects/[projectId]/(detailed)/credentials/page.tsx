@@ -28,7 +28,6 @@ export default function ProjectCredentialsPage() {
                 const res = await getProjectCredentials(projectId);
 
                 if (!res.success) throw new Error(res.message);
-                console.log(res.credentials);
 
                 setCredentials(res.credentials ?? []);
             } catch (error) {

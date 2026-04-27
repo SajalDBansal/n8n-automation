@@ -9,8 +9,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { projectId } = await params;
     const url = new URL(request.url);
     const force = url.searchParams.get("force");
-    console.log(force);
-
 
     if (!session || !session.user) {
         return NextResponse.json({

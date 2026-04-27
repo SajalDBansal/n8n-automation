@@ -466,8 +466,6 @@ export class WorkFlowRunner {
                 return;
             } catch (err: any) {
                 const error = this.normalizeError(err);
-                console.log("Publising");
-
 
                 if (error.type === "VALIDATION") {
 
@@ -546,9 +544,6 @@ export class WorkFlowRunner {
     async executeNodeByType(currentNode: Node) {
         const resolver = new ExpressionResolver(this.nodeOutputs.getOutputForResolver());
         const resolvedParameters = resolver.resolveParameters(currentNode.parameters);
-
-        console.log("all resolved otuputs", this.nodeOutputs.getOutputForResolver());
-
 
         try {
             switch (currentNode.name) {

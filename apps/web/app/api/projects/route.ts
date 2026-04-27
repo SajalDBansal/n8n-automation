@@ -30,7 +30,6 @@ export async function POST(request: NextRequest) {
     const data = validateData.data;
 
     try {
-        console.log(userId);
 
         const project = await prisma.project.create({ data: { ...data, userId: userId } });
 

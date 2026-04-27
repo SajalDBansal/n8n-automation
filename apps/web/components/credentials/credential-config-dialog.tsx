@@ -70,8 +70,6 @@ export default function CredentialConfigDrawer({
                 ...(projectId && { projectId }),
             }
 
-            console.log("Payload: ", payload)
-
             const res = await axios.post(
                 `/api/projects/${projectId}/credentials`,
                 payload

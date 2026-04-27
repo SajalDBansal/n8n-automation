@@ -6,10 +6,9 @@ export const GET = async (
     req: NextRequest,
     { params }: { params: Promise<{ webhookId: string, projectId: string }> }
 ) => {
-    console.log("-------------webhook------------------------");
+    // console.log("-------------webhook------------------------");
     const webhookId = (await params).webhookId;
     const projectId = (await params).projectId;
-    console.log("webhookId", webhookId);
 
     const workflow = await prisma.webhook.findFirst({
         where: {
@@ -51,7 +50,6 @@ export const GET = async (
         return response;
     });
     const executionId = executionResponse.id;
-    console.log("ExecutingID", executionId);
 
     const executionEngine = getExecutionEngine();
     try {

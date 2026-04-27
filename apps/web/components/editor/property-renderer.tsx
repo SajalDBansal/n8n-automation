@@ -27,7 +27,7 @@ const createDropHandler = (
         ev.preventDefault();
         ev.currentTarget.classList.remove("ring-2", "ring-blue-500");
         const droppedData = ev.dataTransfer.getData("text");
-        console.log("Dropped Expression: ", droppedData);
+        // console.log("Dropped Expression: ", droppedData);
         const currentVal = currentValue.toString();
         const newVal = currentVal ? `${currentVal} ${droppedData}` : droppedData;
         onChange(newVal);

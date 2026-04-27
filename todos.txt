@@ -1,5 +1,4 @@
-3. check the prisma schema again remove unwantedd indexs and clear proper typing . 
-4. remove all the todos and get there tasks done systematically . 
+ 4. remove all the todos and get there tasks done systematically . 
 5. redefine the types package to seperate types according to there boundaries.
 6. check all console.logs or warns and error and redefine them symantically like for redis log it starts as "Redis:" for db "DB:" etc.
 7. create charts and flow daigram to explain the project flow to the interviewer/reader.

@@ -8,7 +8,6 @@ import { authOptions } from "@/lib/auth";
 
 export default async function Navbar() {
     const session = await getServerSession(authOptions);
-    // TODO: Show user avatar and name if logged in, otherwise show sign in and get started buttons
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md supports-backdrop-filter:bg-background/60">

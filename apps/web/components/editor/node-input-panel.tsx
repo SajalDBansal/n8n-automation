@@ -178,7 +178,7 @@ function RenderKeyValue({ keyVal, value, depth = 0, nodeId = "", pathPrefix = ""
                     <span
                         className={`text-sm font-medium text-gray-700 cursor-grab ${depth === 0 ? 'font-semibold text-blue-700' : ''}`}
                         onDragStart={(ev) => {
-                            console.log("Dragging object path:", fullPath);
+                            // console.log("Dragging object path:", fullPath);
                             ev.dataTransfer.setData("text", `{{ ${fullPath} }}`);
                             ev.dataTransfer.effectAllowed = "copy";
                             ev.stopPropagation();
@@ -228,7 +228,7 @@ function RenderKeyValue({ keyVal, value, depth = 0, nodeId = "", pathPrefix = ""
                     <span
                         className="text-sm font-medium text-gray-700 cursor-grab"
                         onDragStart={(ev) => {
-                            console.log("Dragging array path:", fullPath);
+                            // console.log("Dragging array path:", fullPath);
                             ev.dataTransfer.setData("text", `{{ ${fullPath} }}`);
                             ev.dataTransfer.effectAllowed = "copy";
                             ev.stopPropagation(); // Prevent triggering the expand/collapse
@@ -268,7 +268,7 @@ function RenderKeyValue({ keyVal, value, depth = 0, nodeId = "", pathPrefix = ""
                 <span
                     className="text-sm font-medium text-gray-700 min-w-0 shrink-0 cursor-grab select-none hover:text-blue-600 hover:bg-blue-100 px-2 py-1 rounded border-2 border-dashed border-transparent hover:border-blue-300 transition-all"
                     onDragStart={(ev) => {
-                        console.log("Dragging full path:", fullPath);
+                        // console.log("Dragging full path:", fullPath);
                         ev.dataTransfer.setData("text", `{{ ${fullPath} }}`);
                         ev.dataTransfer.effectAllowed = "copy";
                     }}
