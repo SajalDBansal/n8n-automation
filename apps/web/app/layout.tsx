@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import "@workspace/ui/styles/globals.css"
 import { cn } from "@workspace/ui/lib/utils";
 import { ThemeProvider } from "@/providers/theme-provider"
-import { SessionProvider } from "@/providers/session-provider";
 import { Toaster } from "@workspace/ui/components/sonner";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 
@@ -32,11 +31,9 @@ export default function RootLayout({
     >
       <body className="min-h-screen bg-background antialiased selection:bg-primary selection:text-primary-foreground">
         <TooltipProvider>
-          <SessionProvider>
-            <ThemeProvider>
-              {children}
-            </ThemeProvider>
-          </SessionProvider>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
           <Toaster />
         </TooltipProvider>
       </body>
