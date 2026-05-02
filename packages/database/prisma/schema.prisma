@@ -13,29 +13,67 @@ datasource db {
 }
 
 model User {
-  id                       String    @id @default(cuid())
-  userName                 String
-  email                    String    @unique
-  avatarUrl                String?
-  passwordHash             String
-  isEmailVerified          Boolean   @default(false)
-  isArchived               Boolean   @default(false)
-  passwordResetTokenHash   String?
-  passwordResetTokenExpiry DateTime?
-  createdAt                DateTime  @default(now())
-  updatedAt                DateTime  @updatedAt
-  projects                 Project[]
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isArchived    Boolean?  @default(false)
+  sessions      Session[]
+  accounts      Account[]
+  projects      Project[]
+
+  @@map("user")
 }
 
-model PendingUser {
-  id           String   @id @default(cuid())
-  userName     String
-  email        String   @unique
-  passwordHash String
-  otpHash      String
-  otpExpiry    DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
 }
 
 enum ProjectType {
@@ -49,7 +87,7 @@ model Project {
   description String?
   type        ProjectType @default(PERSONAL)
   userId      String
-  icon        Json? // Store icon as JSON (e.g., { "type": "emoji" | "image", "value": string }
+  icon        Json? // Store icon as JSON (e.g., { "type": "ICON" | "IMAGE", "value": string })
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -101,6 +139,7 @@ model Node {
   inEdges  Edge[] @relation("TargetNode")
 
   @@index([workflowId])
+  @@index([credentialId])
 }
 
 model Edge {
@@ -118,6 +157,8 @@ model Edge {
   targetNode Node     @relation("TargetNode", fields: [target], references: [id], onDelete: Cascade)
 
   @@index([workflowId])
+  @@index([source])
+  @@index([target])
 }
 
 model Credential {
@@ -168,6 +209,10 @@ model Webhook {
   method  String?
   headers Json?
   body    Json?
+  // HMAC-SHA256 signing secret for this webhook, generated on first creation
+  // and preserved across workflow saves. Null for webhooks created before
+  // signature validation existed — those stay unsigned.
+  secret  String?
 
   workflowId String
   createdAt  DateTime @default(now())

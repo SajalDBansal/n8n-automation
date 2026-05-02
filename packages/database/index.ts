@@ -1,6 +1,9 @@
 import { PrismaClient } from "./generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
+export { encryptCredentialData, decryptCredentialData } from "./credential-crypto";
+export type { EncryptedCredentialData } from "./credential-crypto";
+
 const globalForPrisma = global as unknown as {
     prisma: PrismaClient;
 };
