@@ -1,87 +1,57 @@
-import type { AuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { signinZodSchema } from "@workspace/validators";
-import { normalizeString } from "@/utils/string-normalize";
+import { betterAuth } from "better-auth";
+import { prismaAdapter } from "@better-auth/prisma-adapter";
 import prisma from "@workspace/database";
-import bcrypt from "bcrypt";
-import { userAgent } from "next/server";
+import config from "@/utils/config";
 
-export const authOptions: AuthOptions = {
-    // Configure one or more authentication providers
-    secret: process.env.NEXTAUTH_SECRET,
-    providers: [
-        CredentialsProvider({
-            name: "Credentials",
-            credentials: {
-                email: { label: "Email", type: "email", placeholder: "jsmith@example.com" },
-                password: { label: "Password", type: "password" },
+export const auth = betterAuth({
+    baseURL: config.BETTER_AUTH_URL,
+    secret: config.BETTER_AUTH_SECRET,
+    database: prismaAdapter(prisma, { provider: "postgresql" }),
+
+    user: {
+        additionalFields: {
+            isArchived: {
+                type: "boolean",
+                defaultValue: false,
+                input: false,
             },
-            async authorize(credentials, req) {
-                if (!credentials) throw new Error("Invalid credentials");
-
-                if (!credentials.email || !credentials.password) {
-                    throw new Error("Email and password are required");
-                }
-
-                const validateData = signinZodSchema.safeParse({
-                    email: credentials.email,
-                    password: credentials.password
-                });
-
-                if (!validateData.success) throw new Error("Invalid credentials");
-
-                const { email: userEmail, password } = validateData.data;
-
-                const email = normalizeString(userEmail);
-
-                const existingUser = await prisma.user.findUnique({ where: { email } });
-
-                if (!existingUser) {
-                    const pendingUser = await prisma.pendingUser.findUnique({ where: { email } });
-
-                    if (pendingUser) {
-                        throw new Error("User registration is pending. Please check your email for OTP verification.");
-                    }
-                    throw new Error("Invalid credentials");
-                }
-
-                if (existingUser.isArchived) throw new Error("Your account has been archived.");
-
-                if (!existingUser.isEmailVerified) {
-                    throw new Error("Please verify your email address before logging in.");
-                }
-
-                const { id, userName, passwordHash } = existingUser;
-
-                const validPassword = await bcrypt.compare(password, passwordHash);
-
-                if (!validPassword) throw new Error("Invalid credentials");
-
-                return {
-                    id,
-                    name: userName,
-                    email,
-                };
-            }
-        })
-    ],
-
-    pages: {
-        signIn: "/signin",
-    },
-
-    callbacks: {
-        async jwt({ token, user }) {
-            if (user) {
-                token.id = user.id;
-            }
-            return token;
-        },
-        async session({ session, token }) {
-            if (token && token.id) {
-                session.user.id = token.id;
-            }
-            return session;
         },
     },
-}
+
+    // No sendResetPassword callback — Better Auth treats that as "reset
+    // password is disabled" and returns a clean 400 from /forget-password
+    // instead of silently trying (and failing) to send an email.
+    emailAndPassword: {
+        enabled: true,
+        requireEmailVerification: false,
+        minPasswordLength: 8,
+    },
+
+    // Blocks new sessions for archived accounts, so an archived user is
+    // signed out immediately rather than only being rejected at next login.
+    databaseHooks: {
+        session: {
+            create: {
+                before: async (session) => {
+                    const user = await prisma.user.findUnique({
+                        where: { id: session.userId },
+                        select: { isArchived: true },
+                    });
+                    if (user?.isArchived) return false;
+                },
+            },
+        },
+    },
+
+    // Rate limiting defaults to production-only; the audit flagged auth
+    // routes as having none at all, so it's turned on for every environment.
+    rateLimit: {
+        enabled: true,
+        window: 60,
+        max: 20,
+        customRules: {
+            "/sign-in/email": { window: 60, max: 10 },
+            "/sign-up/email": { window: 60, max: 5 },
+        },
+    },
+});
