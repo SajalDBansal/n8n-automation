@@ -1,11 +1,12 @@
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
+import { auth } from "@/lib/auth";
 import { archiveUserZodSchema } from "@workspace/validators";
 import prisma from "@workspace/database";
-import bcrypt from "bcrypt";
+import { headers } from "next/headers";
+import { APIError } from "better-auth/api";
 
 export async function POST(request: Request) {
-    const session = await getServerSession(authOptions);
+    const requestHeaders = await headers();
+    const session = await auth.api.getSession({ headers: requestHeaders });
 
     if (!session) {
         return Response.json({
@@ -13,8 +14,6 @@ export async function POST(request: Request) {
             message: "Unauthorized",
         }, { status: 401 })
     }
-
-    const { id } = session.user;
 
     const body = await request.json();
 
@@ -28,36 +27,38 @@ export async function POST(request: Request) {
         }, { status: 400 })
     }
 
-    const { email, password } = validateData.data;
+    const { password } = validateData.data;
 
-    const user = await prisma.user.findUnique({
-        where: { id, email },
-        select: { passwordHash: true }
-    });
-
-    if (!user) {
-        return Response.json({
-            success: false,
-            message: "User not found",
-        }, { status: 404 })
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
-    if (!isPasswordValid) {
-        return Response.json({
-            success: false,
-            message: "Invalid password",
-        }, { status: 401 })
+    // Re-verifies the password through the real sign-in path rather than
+    // reaching into Better Auth's internal hashing, since it's the only
+    // exposed way to check a password against the stored credential.
+    try {
+        await auth.api.signInEmail({
+            body: { email: session.user.email, password },
+            headers: requestHeaders,
+        });
+    } catch (error) {
+        if (error instanceof APIError) {
+            return Response.json({
+                success: false,
+                message: "Invalid password",
+            }, { status: 401 })
+        }
+        throw error;
     }
 
     await prisma.user.update({
-        where: { id },
-        data: { isArchived: true, isEmailVerified: false }
+        where: { id: session.user.id },
+        data: { isArchived: true },
     });
+
+    // Kills every session for this user immediately (including the one just
+    // created by the re-verification sign-in above), instead of letting an
+    // already-logged-in session keep working until it naturally expires.
+    await auth.api.revokeSessions({ headers: requestHeaders });
 
     return Response.json({
         success: true,
-        message: "User archived successfully",
+        message: "Account archived successfully",
     }, { status: 200 });
 }
