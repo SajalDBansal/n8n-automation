@@ -1,13 +1,14 @@
 import * as z from "zod";
-import { registerZodSchema, resendOTPZodSchema, resetPasswordZodSchema, signinZodSchema, verifyOTPZodSchema } from "@workspace/validators";
+import { registerZodSchema, resetPasswordZodSchema, signinZodSchema, forgetPasswordZodSchema, changePasswordZodSchema, archiveUserZodSchema } from "@workspace/validators";
 
 export type RegisterFormValues = z.infer<typeof registerZodSchema>;
 
 export type SigninFormValues = z.infer<typeof signinZodSchema>;
 
-export type VerifyOtpFormValues = z.infer<typeof verifyOTPZodSchema>
-
-export type SendOtpFormValues = z.infer<typeof resendOTPZodSchema>
+export type ForgotPasswordFormValues = z.infer<typeof forgetPasswordZodSchema>
 
 export type ResetPasswordFormValues = z.infer<typeof resetPasswordZodSchema>
 
+export type ChangePasswordFormValues = z.infer<typeof changePasswordZodSchema>
+
+export type ArchiveUserFormValues = z.infer<typeof archiveUserZodSchema>

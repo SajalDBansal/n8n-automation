@@ -1,36 +1,119 @@
 "use client"
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Loader2, Shield, Smartphone, Trash } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
-import Link from "next/link";
 import { Form } from "@workspace/ui/components/form";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createProjectFormZodSchema } from "@workspace/validators";
-import { CreateProjectFormValues } from "@workspace/types";
+import { changePasswordZodSchema } from "@workspace/validators";
+import { ArchiveUserFormValues, ChangePasswordFormValues } from "@workspace/types";
 import { useRouter } from "next/navigation";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@workspace/ui/components/field";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
 import { Input } from "@workspace/ui/components/input";
-import { createProjectOptimistic } from "@/action/client/project";
-import { useSession } from "next-auth/react";
+import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@workspace/ui/components/dialog";
+import { useSession, updateUser, changePassword } from "@/lib/auth-client";
+import { archiveUserZodSchema } from "@workspace/validators";
+import { toast } from "sonner";
 
 export default function UpdateProfileCard() {
     const router = useRouter();
+    const { data: session, refetch } = useSession();
+    const user = session?.user;
 
-    const form = useForm<CreateProjectFormValues>({
-        resolver: zodResolver(createProjectFormZodSchema),
-        defaultValues: {
-            name: "",
-            description: "",
-            type: "PERSONAL"
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
+    const [isArchiving, setIsArchiving] = useState(false);
+    const [archiveError, setArchiveError] = useState<string | null>(null);
+    const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+
+    const profileForm = useForm({
+        values: {
+            name: user?.name ?? "",
+            image: user?.image ?? "",
         },
     });
 
-    async function onSubmit(data: CreateProjectFormValues) {
-        await createProjectOptimistic(data);
-        router.push("/projects");
+    async function onProfileSubmit(data: { name: string; image: string }) {
+        try {
+            setIsSavingProfile(true);
+            const { error } = await updateUser({ name: data.name, image: data.image || undefined });
+            if (error) {
+                toast.error(error.message || "Failed to update profile");
+                return;
+            }
+            await refetch();
+            toast.success("Profile updated successfully");
+        } finally {
+            setIsSavingProfile(false);
+        }
+    }
+
+    const passwordForm = useForm<ChangePasswordFormValues>({
+        resolver: zodResolver(changePasswordZodSchema),
+        defaultValues: {
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: "",
+        },
+    });
+
+    async function onChangePassword(data: ChangePasswordFormValues) {
+        const { error } = await changePassword({
+            currentPassword: data.currentPassword,
+            newPassword: data.newPassword,
+            revokeOtherSessions: true,
+        });
+
+        if (error) {
+            toast.error(error.message || "Failed to change password");
+            return;
+        }
+
+        passwordForm.reset();
+        toast.success("Password changed successfully");
+    }
+
+    const archiveForm = useForm<ArchiveUserFormValues>({
+        resolver: zodResolver(archiveUserZodSchema),
+        defaultValues: { password: "" },
+    });
+
+    async function onArchiveAccount(data: ArchiveUserFormValues) {
+        try {
+            setIsArchiving(true);
+            setArchiveError(null);
+
+            const response = await fetch("/api/auth/archive", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                setArchiveError(result.message || "Failed to archive account");
+                return;
+            }
+
+            router.push("/signin");
+        } catch (error) {
+            console.error(error);
+            setArchiveError("Something went wrong. Please try again.");
+        } finally {
+            setIsArchiving(false);
+        }
     }
 
     const container = {
@@ -43,6 +126,8 @@ export default function UpdateProfileCard() {
         }
     }
 
+    const fallbackAvatar = (user?.name ?? "").slice(0, 2).toUpperCase();
+
     return (
         <motion.div
             variants={container}
@@ -52,33 +137,36 @@ export default function UpdateProfileCard() {
         >
             <Card className="bg-background/50 backdrop-blur-xl border-border/50">
                 <CardHeader>
-                    <CardTitle>Project Details</CardTitle>
-                    <CardDescription>Provide a name and other details for the project.</CardDescription>
+                    <CardTitle>Profile</CardTitle>
+                    <CardDescription>Update your personal information.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col justify-between h-full">
-
-                    <Form {...form}>
+                    <Form {...profileForm}>
                         <form className="space-y-4">
+                            <div className="flex items-center gap-4">
+                                <Avatar className="h-16 w-16 rounded-lg">
+                                    <AvatarImage src={profileForm.watch("image")} alt={user?.name} />
+                                    <AvatarFallback className="rounded-lg text-lg">{fallbackAvatar}</AvatarFallback>
+                                </Avatar>
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Controller
                                     name="name"
-                                    control={form.control}
+                                    control={profileForm.control}
                                     render={({ field, fieldState }) => (
                                         <Field data-invalid={fieldState.invalid} className="gap-1">
-                                            <FieldLabel htmlFor="create-project-form-name" className="gap-1">
-                                                Project Name <span className="text-destructive">*</span>
+                                            <FieldLabel htmlFor="profile-form-name">
+                                                Full Name
                                             </FieldLabel>
                                             <Input
                                                 {...field}
-                                                id="create-project-form-name"
+                                                id="profile-form-name"
                                                 aria-invalid={fieldState.invalid}
-                                                placeholder="e.g. Marketing Automation"
+                                                placeholder="Your name"
                                                 autoComplete="off"
                                                 type="text"
                                             />
-                                            <FieldDescription>
-                                                Enter your desired project name.
-                                            </FieldDescription>
                                             {fieldState.invalid && (
                                                 <FieldError errors={[fieldState.error]} />
                                             )}
@@ -86,51 +174,36 @@ export default function UpdateProfileCard() {
                                     )}
                                 />
 
-                                <Controller
-                                    name="type"
-                                    control={form.control}
-                                    render={({ field, fieldState }) => (
-                                        <Field data-invalid={fieldState.invalid} className="gap-1">
-                                            <FieldLabel htmlFor="create-project-form-name" className="gap-1">
-                                                Type <span className="text-destructive">*</span>
-                                            </FieldLabel>
-                                            <Select value={field.value} onValueChange={field.onChange}>
-                                                <SelectTrigger aria-invalid={fieldState.invalid}>
-                                                    <SelectValue placeholder="Select a type" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectGroup>
-                                                        <SelectItem value="PERSONAL">Personal</SelectItem>
-                                                        <SelectItem value="TEAM">Team</SelectItem>
-                                                    </SelectGroup>
-                                                </SelectContent>
-                                            </Select>
-                                            <FieldDescription>
-                                                Select the desired Project type.
-                                            </FieldDescription>
-                                            {fieldState.invalid && (
-                                                <FieldError errors={[fieldState.error]} />
-                                            )}
-                                        </Field>
-                                    )}
-                                />
-
+                                <Field className="gap-1">
+                                    <FieldLabel htmlFor="profile-form-email">
+                                        Email
+                                    </FieldLabel>
+                                    <Input
+                                        id="profile-form-email"
+                                        value={user?.email ?? ""}
+                                        disabled
+                                        readOnly
+                                        type="email"
+                                    />
+                                    <FieldDescription>
+                                        Contact support to change your email address.
+                                    </FieldDescription>
+                                </Field>
                             </div>
 
-
                             <Controller
-                                name="description"
-                                control={form.control}
+                                name="image"
+                                control={profileForm.control}
                                 render={({ field, fieldState }) => (
                                     <Field data-invalid={fieldState.invalid} className="gap-1">
-                                        <FieldLabel htmlFor="create-project-form-name" className="gap-1">
-                                            Description
+                                        <FieldLabel htmlFor="profile-form-image">
+                                            Avatar URL
                                         </FieldLabel>
                                         <Input
                                             {...field}
-                                            id="create-project-form-name"
+                                            id="profile-form-image"
                                             aria-invalid={fieldState.invalid}
-                                            placeholder="What is this project about?"
+                                            placeholder="https://example.com/avatar.png"
                                             autoComplete="off"
                                             type="text"
                                         />
@@ -140,26 +213,19 @@ export default function UpdateProfileCard() {
                                     </Field>
                                 )}
                             />
-
                         </form>
                     </Form>
-
                 </CardContent>
 
                 <CardFooter className="flex justify-end gap-3 border-t pt-3">
-                    <Link href={"/projects"}>
-                        <Button variant="outline" type="button" className="rounded-xl">
-                            Cancel
-                        </Button>
-                    </Link>
                     <Button
-                        onClick={form.handleSubmit(onSubmit)}
+                        onClick={profileForm.handleSubmit(onProfileSubmit)}
                         type="submit"
-                        className="rounded-xl" disabled={form.formState.isSubmitting}>
-                        {form.formState.isSubmitting ? (
+                        className="rounded-xl" disabled={isSavingProfile}>
+                        {isSavingProfile ? (
                             <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
                         ) : (
-                            "Save Project"
+                            "Save Profile"
                         )}
                     </Button>
                 </CardFooter>
@@ -170,19 +236,70 @@ export default function UpdateProfileCard() {
                     <CardTitle>Security</CardTitle>
                     <CardDescription>Manage your password and security modes.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid gap-2">
-                    <div className="flex items-center justify-between p-4 border border-border/50 rounded-xl bg-background/30">
-                        <div className="flex items-center gap-4">
-                            <div className="p-2 bg-primary/10 rounded-lg">
-                                <Shield className="h-5 w-5 text-primary" />
+                <CardContent className="grid gap-4">
+                    <Form {...passwordForm}>
+                        <form onSubmit={passwordForm.handleSubmit(onChangePassword)} className="grid gap-3 p-4 border border-border/50 rounded-xl bg-background/30">
+                            <div className="flex items-center gap-4">
+                                <div className="p-2 bg-primary/10 rounded-lg">
+                                    <Shield className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                    <h4 className="font-medium">Password</h4>
+                                    <p className="text-sm text-muted-foreground">Update your account password.</p>
+                                </div>
                             </div>
-                            <div>
-                                <h4 className="font-medium">Password</h4>
-                                <p className="text-sm text-muted-foreground">Last changed 3 months ago</p>
+
+                            <Controller
+                                name="currentPassword"
+                                control={passwordForm.control}
+                                render={({ field, fieldState }) => (
+                                    <Field data-invalid={fieldState.invalid} className="gap-1">
+                                        <FieldLabel htmlFor="change-password-current">Current Password</FieldLabel>
+                                        <Input {...field} id="change-password-current" type="password" autoComplete="current-password" aria-invalid={fieldState.invalid} />
+                                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                    </Field>
+                                )}
+                            />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Controller
+                                    name="newPassword"
+                                    control={passwordForm.control}
+                                    render={({ field, fieldState }) => (
+                                        <Field data-invalid={fieldState.invalid} className="gap-1">
+                                            <FieldLabel htmlFor="change-password-new">New Password</FieldLabel>
+                                            <Input {...field} id="change-password-new" type="password" autoComplete="new-password" aria-invalid={fieldState.invalid} />
+                                            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                        </Field>
+                                    )}
+                                />
+                                <Controller
+                                    name="confirmPassword"
+                                    control={passwordForm.control}
+                                    render={({ field, fieldState }) => (
+                                        <Field data-invalid={fieldState.invalid} className="gap-1">
+                                            <FieldLabel htmlFor="change-password-confirm">Confirm New Password</FieldLabel>
+                                            <Input {...field} id="change-password-confirm" type="password" autoComplete="new-password" aria-invalid={fieldState.invalid} />
+                                            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                        </Field>
+                                    )}
+                                />
                             </div>
-                        </div>
-                        <Button variant="outline" size="sm" className="rounded-lg">Change</Button>
-                    </div>
+
+                            <Button
+                                type="submit"
+                                variant="outline"
+                                size="sm"
+                                className="rounded-lg w-fit justify-self-end"
+                                disabled={passwordForm.formState.isSubmitting}
+                            >
+                                {passwordForm.formState.isSubmitting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    "Change Password"
+                                )}
+                            </Button>
+                        </form>
+                    </Form>
 
                     <div className="flex items-center justify-between p-4 border border-border/50 rounded-xl bg-background/30">
                         <div className="flex items-center gap-4">
@@ -194,7 +311,7 @@ export default function UpdateProfileCard() {
                                 <p className="text-sm text-muted-foreground">Add an extra layer of security to your account.</p>
                             </div>
                         </div>
-                        <Button variant="outline" size="sm" className="rounded-lg">Enable</Button>
+                        <Button variant="outline" size="sm" className="rounded-lg" disabled>Coming soon</Button>
                     </div>
                 </CardContent>
             </Card>
@@ -202,7 +319,7 @@ export default function UpdateProfileCard() {
             <Card className="bg-background/50 backdrop-blur-xl border-border/50 h-full">
                 <CardHeader>
                     <CardTitle>Danger Zone</CardTitle>
-                    <CardDescription>Permanently delete this project and all associated data. This action cannot be undone.</CardDescription>
+                    <CardDescription>Archive your account. This can be reversed by contacting support.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col justify-between h-full">
                     <div className="flex items-center justify-between p-4 rounded-xl bg-destructive/5 border border-destructive/30">
@@ -211,21 +328,62 @@ export default function UpdateProfileCard() {
                                 <Trash className="h-5 w-5 text-destructive" />
                             </div>
                             <div>
-                                <h4 className="font-bold text-destructive">Delete Project</h4>
+                                <h4 className="font-bold text-destructive">Archive Account</h4>
                                 <p className="text-sm text-destructive">
-                                    Permanently delete this project and all its workflows. This action cannot be undone.
+                                    Archive your account and sign out of every device. Your data is kept but the account becomes inaccessible.
                                 </p>
                             </div>
                         </div>
 
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            className="rounded-lg cursor-pointer"
-                        // onClick={handleProjectDelete}
-                        >
-                            Delete
-                        </Button>
+                        <Dialog open={isArchiveDialogOpen} onOpenChange={(open) => {
+                            setIsArchiveDialogOpen(open);
+                            if (!open) {
+                                archiveForm.reset();
+                                setArchiveError(null);
+                            }
+                        }}>
+                            <DialogTrigger asChild>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="rounded-lg cursor-pointer"
+                                >
+                                    Archive
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Confirm account archival</DialogTitle>
+                                    <DialogDescription>
+                                        Enter your password to confirm. You'll be signed out of every device immediately.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <Form {...archiveForm}>
+                                    <form onSubmit={archiveForm.handleSubmit(onArchiveAccount)} className="space-y-4">
+                                        <Controller
+                                            name="password"
+                                            control={archiveForm.control}
+                                            render={({ field, fieldState }) => (
+                                                <Field data-invalid={fieldState.invalid}>
+                                                    <FieldLabel htmlFor="archive-form-password">Password</FieldLabel>
+                                                    <Input {...field} id="archive-form-password" type="password" autoComplete="current-password" aria-invalid={fieldState.invalid} />
+                                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                                    {archiveError && <FieldDescription className="text-destructive">{archiveError}</FieldDescription>}
+                                                </Field>
+                                            )}
+                                        />
+                                        <DialogFooter>
+                                            <DialogClose asChild>
+                                                <Button type="button" variant="outline" className="rounded-lg">Cancel</Button>
+                                            </DialogClose>
+                                            <Button type="submit" variant="destructive" className="rounded-lg" disabled={isArchiving}>
+                                                {isArchiving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Archive Account"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </form>
+                                </Form>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </CardContent>
             </Card>
