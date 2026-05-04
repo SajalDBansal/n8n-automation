@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { usePathname, useRouter } from "next/navigation";
 import { Spotlight } from "@workspace/ui/components/spotlight";
 import { ThemeToggle } from "@/components/theme-toggler";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/auth-client";
 import Loading from "../loading";
 import { useEffect } from "react";
 
@@ -15,22 +15,22 @@ export default function AuthLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const { status } = useSession();
+    const { data: session, isPending } = useSession();
     const router = useRouter();
     const pathname = usePathname();
 
     useEffect(() => {
-        if (status === "authenticated") {
+        if (session) {
             router.push("/dashboard");
         }
-    }, [status, router]);
+    }, [session, router]);
 
 
-    if (status === "loading") {
+    if (isPending) {
         return <Loading />;
     }
 
-    if (status === "authenticated") {
+    if (session) {
         return null; // wait for redirect
     }
 

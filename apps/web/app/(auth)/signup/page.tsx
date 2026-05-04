@@ -19,7 +19,7 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Checkbox } from "@workspace/ui/components/checkbox";
 import { Label } from "@workspace/ui/components/label";
-import { toast } from "sonner";
+import { signUp } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 
 export default function SignupPage() {
@@ -33,7 +33,7 @@ export default function SignupPage() {
     const form = useForm<RegisterFormValues>({
         resolver: zodResolver(registerZodSchema),
         defaultValues: {
-            userName: "",
+            name: "",
             email: "",
             password: "",
             confirmPassword: ""
@@ -45,29 +45,22 @@ export default function SignupPage() {
             setIsLoading(true);
             setError(null);
 
-            const response = await fetch("/api/auth/register", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(data),
+            const { error } = await signUp.email({
+                name: data.name,
+                email: data.email,
+                password: data.password,
             });
 
-            const result = await response.json();
-
-            if (!response.ok || !result.success) {
-                setError(result.message);
+            if (error) {
+                setError(error.message || "Something went wrong. Please try again.");
                 return;
             }
 
-            toast.success(`Your login OTP is ${result.otp}`, {
-                description: "Email service is temprarily down so otp is showed on screen"
-            });
-
-            router.push(`/verify-otp/${result.otpResetToken}?otp=${result.otp}`)
+            router.push(`/dashboard`)
 
         } catch (error) {
             console.log(error);
+            setError("Something went wrong. Please try again.");
         } finally {
             setIsLoading(false);
         }
@@ -93,7 +86,7 @@ export default function SignupPage() {
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                     <Controller
-                        name="userName"
+                        name="name"
                         control={form.control}
                         render={({ field, fieldState }) => (
                             <Field data-invalid={fieldState.invalid}>

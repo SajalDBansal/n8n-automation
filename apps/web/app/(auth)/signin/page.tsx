@@ -14,8 +14,7 @@ import { SigninFormValues } from "@workspace/types";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@workspace/ui/components/field";
 import { Input } from "@workspace/ui/components/input";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
-import { error } from "node:console";
+import { signIn } from "@/lib/auth-client";
 
 export default function signinPage() {
     const [isLoading, setIsLoading] = useState(false);
@@ -36,11 +35,9 @@ export default function signinPage() {
             setIsLoading(true);
             setShowError(false);
 
-            const response = await signIn("credentials", {
-                ...data, redirect: false
-            })
+            const { error } = await signIn.email(data);
 
-            if (!response || response.error) {
+            if (error) {
                 setShowError(true);
                 return;
             }
