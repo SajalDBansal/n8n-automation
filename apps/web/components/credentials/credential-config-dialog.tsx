@@ -9,6 +9,7 @@ import { NodeIcon } from "../ui/node-icon";
 import { FieldRenderer } from "../ui/field-renderer";
 import { Input } from "@workspace/ui/components/input";
 import axios from "axios";
+import { toast } from "sonner";
 
 type NodeConfigDrawerProps = {
     isOpen: boolean
@@ -19,6 +20,10 @@ type NodeConfigDrawerProps = {
         properties: NodeBaseProperties[]
     }
     projectId?: string
+    mode?: "create" | "edit"
+    credentialId?: string
+    initialName?: string
+    onSaved?: () => void
 }
 
 export default function CredentialConfigDrawer({
@@ -26,19 +31,46 @@ export default function CredentialConfigDrawer({
     onClose,
     credentialType,
     projectId,
+    mode = "create",
+    credentialId,
+    initialName,
+    onSaved,
 }: NodeConfigDrawerProps) {
-    const defaultName = `${credentialType.displayName} account`;
+    const defaultName = initialName ?? `${credentialType.displayName} account`;
+    const isEditMode = mode === "edit" && !!credentialId;
 
     const [credentialData, setCredentialData] = useState<Record<string, any>>({});
     const [credentialName, setCredentialName] = useState(defaultName);
     const [isSaving, setIsSaving] = useState(false);
+    const [details, setDetails] = useState<{ createdAt: string; updatedAt: string } | null>(null);
+    const [loadingDetails, setLoadingDetails] = useState(false);
 
     useEffect(() => {
         if (!isOpen) return;
 
         setCredentialName(defaultName);
         setCredentialData({});
-    }, [isOpen])
+        setDetails(null);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, credentialId])
+
+    useEffect(() => {
+        if (!isOpen || !isEditMode || !projectId || !credentialId) return;
+
+        let cancelled = false;
+        setLoadingDetails(true);
+
+        axios.get(`/api/projects/${projectId}/credentials/${credentialId}`)
+            .then((res) => {
+                if (!cancelled && res.data.success) {
+                    setDetails({ createdAt: res.data.data.createdAt, updatedAt: res.data.data.updatedAt });
+                }
+            })
+            .catch((err) => console.error("Failed to load credential details:", err))
+            .finally(() => { if (!cancelled) setLoadingDetails(false); });
+
+        return () => { cancelled = true; };
+    }, [isOpen, isEditMode, projectId, credentialId])
 
     const visibleFields = useMemo(
         () => credentialType.properties.filter((p) => p.type !== "HIDDEN"),
@@ -63,25 +95,54 @@ export default function CredentialConfigDrawer({
         setIsSaving(true)
 
         try {
-            const payload = {
-                name: credentialName,
-                type: credentialType.id,
-                data: credentialData,
-                ...(projectId && { projectId }),
+            if (isEditMode) {
+                // Only fields the user actually typed something into are
+                // sent — an untouched (blank) field means "keep the current
+                // value", since the existing secret is never sent back to
+                // the browser to prefill.
+                const changedData = Object.fromEntries(
+                    Object.entries(credentialData).filter(([, value]) => value !== "" && value !== undefined && value !== null)
+                );
+
+                const payload: Record<string, unknown> = {};
+                if (credentialName && credentialName !== defaultName) payload.name = credentialName;
+                if (Object.keys(changedData).length > 0) payload.data = changedData;
+
+                const res = await axios.patch(
+                    `/api/projects/${projectId}/credentials/${credentialId}`,
+                    payload
+                )
+
+                if (!res.data.success) {
+                    throw new Error(res.data.message || "Failed to update credential")
+                }
+
+                toast.success("Credential updated")
+            } else {
+                const payload = {
+                    name: credentialName,
+                    type: credentialType.id,
+                    data: credentialData,
+                    ...(projectId && { projectId }),
+                }
+
+                const res = await axios.post(
+                    `/api/projects/${projectId}/credentials`,
+                    payload
+                )
+
+                if (!res.data.success) {
+                    throw new Error(res.data.message || "Failed to save credential")
+                }
+
+                toast.success("Credential saved")
             }
 
-            const res = await axios.post(
-                `/api/projects/${projectId}/credentials`,
-                payload
-            )
-
-            if (!res.data.success) {
-                throw new Error(res.data.message || "Failed to save credential")
-            }
-
+            onSaved?.()
             handleClose()
         } catch (err) {
             console.error("Failed to save credential:", err)
+            toast.error(err instanceof Error ? err.message : "Failed to save credential")
         } finally {
             setIsSaving(false)
         }
@@ -120,8 +181,10 @@ export default function CredentialConfigDrawer({
                                     <span className="font-semibold text-2xl text-foreground truncate tracking-tight">
                                         {credentialType.displayName}
                                     </span>
-                                    <DialogDescription className="text-gray-500 pt-4">
-                                        Fill in the credentials for {credentialType.displayName}
+                                    <DialogDescription className="text-muted-foreground pt-4">
+                                        {isEditMode
+                                            ? `Update ${credentialType.displayName}. Leave a field blank to keep its current value.`
+                                            : `Fill in the credentials for ${credentialType.displayName}`}
                                     </DialogDescription>
                                 </div>
                             </div>
@@ -150,7 +213,7 @@ export default function CredentialConfigDrawer({
                                 <div className="h-full overflow-y-auto px-2 py-4">
 
                                     <div className="space-y-3">
-                                        <h4 className="font-semibold text-lg text-gray-900">Configure Credential</h4>
+                                        <h4 className="font-semibold text-lg text-foreground">Configure Credential</h4>
 
                                         <Separator />
 
@@ -158,7 +221,7 @@ export default function CredentialConfigDrawer({
 
                                             {/* credential Name */}
                                             <div className="flex gap-2 flex-col">
-                                                <label className="text-sm font-medium text-gray-700">Credential Name</label>
+                                                <label className="text-sm font-medium text-foreground/80">Credential Name</label>
                                                 <Input
                                                     value={credentialName}
                                                     onChange={(e) => setCredentialName(e.target.value)}
@@ -173,7 +236,7 @@ export default function CredentialConfigDrawer({
                                                 .filter(prop => prop.type !== "HIDDEN")
                                                 .map((property) => (
                                                     <div key={property.name} className="flex gap-2 flex-col">
-                                                        <label className="text-sm font-medium text-gray-700">
+                                                        <label className="text-sm font-medium text-foreground/80">
                                                             {property.displayName}
                                                             {property.required && (
                                                                 <span className="text-red-500 ml-1">*</span>
@@ -197,8 +260,47 @@ export default function CredentialConfigDrawer({
                                 value="details"
                                 className="flex-1 overflow-hidden data-[state=active]:flex flex-col"
                             >
-
-
+                                <div className="h-full overflow-y-auto px-2 py-4">
+                                    <div className="space-y-3">
+                                        <h4 className="font-semibold text-lg text-foreground">Credential Details</h4>
+                                        <Separator />
+                                        <dl className="space-y-4 text-sm">
+                                            <div>
+                                                <dt className="text-muted-foreground">Type</dt>
+                                                <dd className="font-medium text-foreground">{credentialType.displayName}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-muted-foreground">Name</dt>
+                                                <dd className="font-medium text-foreground">{credentialName}</dd>
+                                            </div>
+                                            {isEditMode ? (
+                                                loadingDetails ? (
+                                                    <p className="text-muted-foreground">Loading...</p>
+                                                ) : details ? (
+                                                    <>
+                                                        <div>
+                                                            <dt className="text-muted-foreground">Created</dt>
+                                                            <dd className="font-medium text-foreground">
+                                                                {new Date(details.createdAt).toLocaleString()}
+                                                            </dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt className="text-muted-foreground">Last updated</dt>
+                                                            <dd className="font-medium text-foreground">
+                                                                {new Date(details.updatedAt).toLocaleString()}
+                                                            </dd>
+                                                        </div>
+                                                    </>
+                                                ) : null
+                                            ) : (
+                                                <p className="text-muted-foreground">Save this credential to see its creation date.</p>
+                                            )}
+                                        </dl>
+                                        <p className="text-xs text-muted-foreground pt-2">
+                                            Secret values are never shown here or sent back to the browser — only the credential's own metadata.
+                                        </p>
+                                    </div>
+                                </div>
                             </TabsContent>
                         </Tabs>
                     </div>
