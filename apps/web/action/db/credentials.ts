@@ -29,7 +29,7 @@ export const getNodeCredentials = async (credentials: any, projectId: string) =>
         // console.log("Fetched Credentials : ", response);
         return response;
     } catch (error) {
-        console.log("Error while fetching credentials :", error);
+        console.error("Error while fetching credentials :", error);
         return [];
     }
 }
