@@ -2,29 +2,86 @@
 import { motion } from "framer-motion";
 import { getAllCredentials } from "@/lib/db-calls";
 import { CredentialsPageReturnType } from "@workspace/types";
-import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react"
-import { Hash, Key, Layers, MoreHorizontal } from "lucide-react";
+import { useSession } from "@/lib/auth-client";
+import { useCallback, useEffect, useState } from "react"
+import { Hash, Key, Layers, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import Link from "next/link";
 import { Button } from "@workspace/ui/components/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
+import { CredentialTypePicker } from "@/components/credentials/credential-type-picker";
+import CredentialConfigDrawer from "@/components/credentials/credential-config-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { availableCredentials } from "@/lib/credential-registry";
+import axios from "axios";
+import { toast } from "sonner";
+
+type CredentialRow = CredentialsPageReturnType["credentials"][number];
+
+type ConfigDrawerState = {
+    projectId: string;
+    type: { id: string; displayName: string; properties: typeof availableCredentials[number]["properties"] };
+    mode: "create" | "edit";
+    credentialId?: string;
+    initialName?: string;
+};
 
 export default function CredentialsCards() {
     const session = useSession();
     const [projects, setProjects] = useState<CredentialsPageReturnType[]>([]);
+    const [configDrawer, setConfigDrawer] = useState<ConfigDrawerState | null>(null);
+    const [typePickerForProject, setTypePickerForProject] = useState<string | null>(null);
+    const [deletingCredential, setDeletingCredential] = useState<{ projectId: string; credential: CredentialRow } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const userId = session.data?.user.id;
 
-    useEffect(() => {
+    const fetchCredentials = useCallback(async () => {
         if (!userId) return;
-
-        const run = async () => {
-            const response = await getAllCredentials(userId);
-            setProjects(response || []);
-        }
-
-        run();
+        const response = await getAllCredentials(userId);
+        setProjects(response || []);
     }, [userId]);
+
+    useEffect(() => {
+        fetchCredentials();
+    }, [fetchCredentials]);
+
+    const openEdit = (projectId: string, credential: CredentialRow) => {
+        const match = availableCredentials.find((c) => c.name === credential.type);
+        setConfigDrawer({
+            projectId,
+            type: {
+                id: credential.type,
+                displayName: match?.displayName ?? credential.type,
+                properties: match?.properties ?? [],
+            },
+            mode: "edit",
+            credentialId: credential.id,
+            initialName: credential.name,
+        });
+    };
+
+    const handleDelete = async () => {
+        if (!deletingCredential) return;
+        setIsDeleting(true);
+        try {
+            const res = await axios.delete(
+                `/api/projects/${deletingCredential.projectId}/credentials/${deletingCredential.credential.id}`
+            );
+            if (!res.data.success) throw new Error(res.data.message || "Failed to delete credential");
+            toast.success("Credential deleted");
+            setDeletingCredential(null);
+            fetchCredentials();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to delete credential");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     if (!session || !session.data) return null;
 
@@ -54,24 +111,64 @@ export default function CredentialsCards() {
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ delay: 0.4, duration: 0.2 }}
-            className="flex flex-col gap-4 ml-4"
-        >
-            {projects.map((project) => (
-                <motion.div
-                    key={project.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1, duration: 0.3 }}
-                >
-                    <CredentialsBlock project={project} />
-                </motion.div>
-            ))}
-        </motion.div>
+        <>
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ delay: 0.4, duration: 0.2 }}
+                className="flex flex-col gap-4 ml-4"
+            >
+                {projects.map((project) => (
+                    <motion.div
+                        key={project.id}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.1, duration: 0.3 }}
+                    >
+                        <CredentialsBlock
+                            project={project}
+                            onAdd={() => setTypePickerForProject(project.id)}
+                            onEdit={(credential) => openEdit(project.id, credential)}
+                            onDelete={(credential) => setDeletingCredential({ projectId: project.id, credential })}
+                        />
+                    </motion.div>
+                ))}
+            </motion.div>
+
+            <CredentialTypePicker
+                isOpen={!!typePickerForProject}
+                onClose={() => setTypePickerForProject(null)}
+                onSelect={(type) => {
+                    if (!typePickerForProject) return;
+                    setConfigDrawer({ projectId: typePickerForProject, type, mode: "create" });
+                    setTypePickerForProject(null);
+                }}
+            />
+
+            {configDrawer && (
+                <CredentialConfigDrawer
+                    isOpen={!!configDrawer}
+                    onClose={() => setConfigDrawer(null)}
+                    credentialType={configDrawer.type}
+                    projectId={configDrawer.projectId}
+                    mode={configDrawer.mode}
+                    credentialId={configDrawer.credentialId}
+                    initialName={configDrawer.initialName}
+                    onSaved={fetchCredentials}
+                />
+            )}
+
+            <ConfirmDialog
+                open={!!deletingCredential}
+                onOpenChange={(open) => { if (!open) setDeletingCredential(null); }}
+                title="Delete this credential?"
+                description={`This permanently deletes "${deletingCredential?.credential.name ?? "this credential"}". Any node still using it will stop working.`}
+                confirmLabel="Delete Credential"
+                isConfirming={isDeleting}
+                onConfirm={handleDelete}
+            />
+        </>
     )
 }
 
@@ -100,7 +197,17 @@ const formatDate = (dateString: Date | null) => {
     }
 };
 
-function CredentialsBlock({ project }: { project: CredentialsPageReturnType }) {
+function CredentialsBlock({
+    project,
+    onAdd,
+    onEdit,
+    onDelete,
+}: {
+    project: CredentialsPageReturnType;
+    onAdd: () => void;
+    onEdit: (credential: CredentialRow) => void;
+    onDelete: (credential: CredentialRow) => void;
+}) {
     return (
         <motion.div
             whileHover={{ y: -5 }}
@@ -119,34 +226,32 @@ function CredentialsBlock({ project }: { project: CredentialsPageReturnType }) {
                     </div>
                     <CardDescription>{project.description || "--"}</CardDescription>
                     <CardAction>
-                        <Link href={""}>
-                            <Button>
-                                Add credential
-                            </Button>
-                        </Link>
+                        <Button onClick={onAdd}>
+                            Add credential
+                        </Button>
                     </CardAction>
                 </CardHeader>
                 <CardContent className="min-h-75 flex items-center justify-center border-t border-border/50 bg-muted/5 p-0">
                     <div className=" rounded-lg overflow-hidden w-full">
                         <table className="w-full table-fixed">
 
-                            <thead className="bg-gray-50 border-b border-gray-200">
+                            <thead className="bg-muted/40 border-b border-border/50">
                                 <tr>
-                                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">SERVICE</th>
-                                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ID</th>
-                                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">TYPE</th>
-                                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">ADDED ON</th>
+                                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">SERVICE</th>
+                                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">ID</th>
+                                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">TYPE</th>
+                                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">ADDED ON</th>
                                     <th></th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200">
+                            <tbody className="divide-y divide-border/50">
                                 {
                                     project.credentials.map((credential) => (
-                                        <tr key={credential.id} className="hover:bg-gray-50">
+                                        <tr key={credential.id} className="hover:bg-muted/30">
                                             <td className="py-3 px-4">
                                                 <div className="flex items-center gap-2">
                                                     <Key className="w-4 h-4" />
-                                                    <span className="text-sm text-gray-900">{credential.name}</span>
+                                                    <span className="text-sm">{credential.name}</span>
                                                 </div>
                                             </td>
                                             <td className="py-3 px-4">
@@ -158,21 +263,38 @@ function CredentialsBlock({ project }: { project: CredentialsPageReturnType }) {
                                                 </div>
                                             </td>
                                             <td className="py-3 px-4">
-                                                <span className="text-sm text-gray-600">
+                                                <span className="text-sm text-muted-foreground">
                                                     {credential.type}
                                                 </span>
                                             </td>
                                             <td className="py-3 px-4">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-sm text-gray-600">
+                                                    <span className="text-sm text-muted-foreground">
                                                         {formatDate(credential.updatedAt)}
                                                     </span>
                                                 </div>
                                             </td>
                                             <td className="py-3 px-4">
-                                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                                    <MoreHorizontal className="w-4 h-4" />
-                                                </Button>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                                            <MoreHorizontal className="w-4 h-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => onEdit(credential)}>
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            className="text-destructive"
+                                                            onClick={() => onDelete(credential)}
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </td>
                                         </tr>
                                     ))

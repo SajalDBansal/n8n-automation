@@ -1,12 +1,23 @@
 "use client";
 import { getProjectCredentials } from "@/action/db/workflow";
 import TabViewCard from "@/components/module/home/projects/tab-view-card";
-import { Badge } from "@workspace/ui/components/badge";
+import { CredentialTypePicker } from "@/components/credentials/credential-type-picker";
+import CredentialConfigDrawer from "@/components/credentials/credential-config-dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { availableCredentials } from "@/lib/credential-registry";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import { MoreHorizontal, ShieldX } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
+import { MoreHorizontal, Pencil, ShieldX, Trash2 } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import axios from "axios";
+import { toast } from "sonner";
 
 type CredentialsType = {
     createdAt: string;
@@ -21,34 +32,39 @@ export default function ProjectCredentialsPage() {
     const [credentials, setCredentials] = useState<CredentialsType[]>([]);
     const { projectId }: { projectId: string } = useParams();
 
-    useEffect(() => {
-        const run = async () => {
-            try {
-                setLoading(true);
-                const res = await getProjectCredentials(projectId);
+    const [isTypePickerOpen, setIsTypePickerOpen] = useState(false);
+    type ConfigDrawerState = {
+        type: { id: string; displayName: string; properties: typeof availableCredentials[number]["properties"] };
+        mode: "create" | "edit";
+        credentialId?: string;
+        initialName?: string;
+    };
+    const [configDrawer, setConfigDrawer] = useState<ConfigDrawerState | null>(null);
+    const [deletingCredential, setDeletingCredential] = useState<CredentialsType | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
-                if (!res.success) throw new Error(res.message);
+    const fetchCredentials = useCallback(async () => {
+        try {
+            setLoading(true);
+            const res = await getProjectCredentials(projectId);
 
-                setCredentials(res.credentials ?? []);
-            } catch (error) {
-                console.log(error);
-            } finally {
-                setLoading(false);
-            }
-        };
+            if (!res.success) throw new Error(res.message);
 
-        run();
+            setCredentials(res.credentials ?? []);
+        } catch (error) {
+            console.log(error);
+        } finally {
+            setLoading(false);
+        }
     }, [projectId]);
 
+    useEffect(() => {
+        fetchCredentials();
+    }, [fetchCredentials]);
+
     const getCredentialDisplayName = (type: string) => {
-        switch (type.toLowerCase()) {
-            case 'telegramapi':
-                return 'Telegram API'
-            case 'gmailoauth2api':
-                return 'Gmail OAuth2 API'
-            default:
-                return type
-        }
+        const match = availableCredentials.find((c) => c.name === type);
+        return match?.displayName ?? type;
     }
 
     const formatDate = (dateString: string) => {
@@ -75,6 +91,36 @@ export default function ProjectCredentialsPage() {
         }).format(new Date(dateString));
     };
 
+    const openEdit = (credential: CredentialsType) => {
+        const match = availableCredentials.find((c) => c.name === credential.type);
+        setConfigDrawer({
+            type: {
+                id: credential.type,
+                displayName: match?.displayName ?? credential.type,
+                properties: match?.properties ?? [],
+            },
+            mode: "edit",
+            credentialId: credential.id,
+            initialName: credential.name,
+        });
+    };
+
+    const handleDelete = async () => {
+        if (!deletingCredential) return;
+        setIsDeleting(true);
+        try {
+            const res = await axios.delete(`/api/projects/${projectId}/credentials/${deletingCredential.id}`);
+            if (!res.data.success) throw new Error(res.data.message || "Failed to delete credential");
+            toast.success("Credential deleted");
+            setDeletingCredential(null);
+            fetchCredentials();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to delete credential");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <TabViewCard >
             <Card className="bg-background/50 backdrop-blur-xl border-border/50">
@@ -82,7 +128,7 @@ export default function ProjectCredentialsPage() {
                     <CardTitle>Project Credentials</CardTitle>
                     <CardDescription>Manage keys and auth tokens scoped to this project.</CardDescription>
                     <CardAction>
-                        <Button>
+                        <Button onClick={() => setIsTypePickerOpen(true)}>
                             Add Credentials
                         </Button>
                     </CardAction>
@@ -104,20 +150,25 @@ export default function ProjectCredentialsPage() {
 
                     {/* 📭 Empty State */}
                     {!loading && credentials.length === 0 && (
-                        <div className="h-40 flex items-center justify-center py-8 text-muted-foreground">
-                            <ShieldX className="w-6 h-6" />
-                            <span className="ml-2 text-red-600">No executions found for this project.</span>
+                        <div className="h-40 flex flex-col items-center justify-center py-8 text-muted-foreground gap-2">
+                            <div className="flex items-center gap-2">
+                                <ShieldX className="w-6 h-6" />
+                                <span>No credentials in this project yet.</span>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => setIsTypePickerOpen(true)}>
+                                Add your first credential
+                            </Button>
                         </div>
                     )}
 
                     {!loading && credentials.length > 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full pt-4">
                             {credentials.map((credential) => (
-                                <div key={credential.id} className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
-                                    <div className="flex items-center gap-3">
-                                        <div>
-                                            <h3 className="font-medium text-gray-900">{credential.name}</h3>
-                                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                                <div key={credential.id} className="flex items-center justify-between p-4 bg-background border border-border rounded-lg hover:border-primary/40 transition-colors">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="min-w-0">
+                                            <h3 className="font-medium truncate">{credential.name}</h3>
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                                                 <span>{getCredentialDisplayName(credential.type)}</span>
                                                 <span>|</span>
                                                 <span>Last updated {formatDate(credential.updatedAt)}</span>
@@ -126,10 +177,27 @@ export default function ProjectCredentialsPage() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                            <MoreHorizontal className="w-4 h-4" />
-                                        </Button>
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                                    <MoreHorizontal className="w-4 h-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => openEdit(credential)}>
+                                                    <Pencil className="mr-2 h-4 w-4" />
+                                                    Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    className="text-destructive"
+                                                    onClick={() => setDeletingCredential(credential)}
+                                                >
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 </div>
                             ))}
@@ -140,6 +208,37 @@ export default function ProjectCredentialsPage() {
                 </CardContent>
             </Card>
 
+            <CredentialTypePicker
+                isOpen={isTypePickerOpen}
+                onClose={() => setIsTypePickerOpen(false)}
+                onSelect={(type) => {
+                    setIsTypePickerOpen(false);
+                    setConfigDrawer({ type, mode: "create" });
+                }}
+            />
+
+            {configDrawer && (
+                <CredentialConfigDrawer
+                    isOpen={!!configDrawer}
+                    onClose={() => setConfigDrawer(null)}
+                    credentialType={configDrawer.type}
+                    projectId={projectId}
+                    mode={configDrawer.mode}
+                    credentialId={configDrawer.credentialId}
+                    initialName={configDrawer.initialName}
+                    onSaved={fetchCredentials}
+                />
+            )}
+
+            <ConfirmDialog
+                open={!!deletingCredential}
+                onOpenChange={(open) => { if (!open) setDeletingCredential(null); }}
+                title="Delete this credential?"
+                description={`This permanently deletes "${deletingCredential?.name ?? "this credential"}". Any node still using it will stop working.`}
+                confirmLabel="Delete Credential"
+                isConfirming={isDeleting}
+                onConfirm={handleDelete}
+            />
         </TabViewCard>
     )
 }
