@@ -1,11 +1,11 @@
-import { authOptions } from "@/lib/auth";
-import prisma from "@workspace/database";
+import { auth } from "@/lib/auth";
+import prisma, { encryptCredentialData } from "@workspace/database";
 import { createCredentialZodSchema } from "@workspace/validators";
-import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
     const { projectId } = await params;
 
     if (!session || !session.user) {
@@ -25,8 +25,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         if (!isValidProject) {
             return NextResponse.json({
                 success: false,
-                message: "Unauthorized Request"
-            }, { status: 401 })
+                message: "Project not found"
+            }, { status: 404 })
         }
 
         const credentials = await prisma.credential.findMany({
@@ -43,12 +43,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
         return NextResponse.json({
             success: true,
-            message: "Workflow added successfully",
+            message: "Credentials fetched successfully",
             credentials: credentialsData
         }, { status: 200 })
 
     } catch (error) {
-        console.error("Error creating workflow : ", error);
+        console.error("Error fetching credentials : ", error);
         return NextResponse.json({
             success: false,
             message: "Internal Server Error",
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
     const { projectId } = await params;
 
     if (!session || !session.user) {
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
                 projectId: projectId,
                 name: name,
                 type: type,
-                data: data
+                data: encryptCredentialData(data)
             }
         })
 
