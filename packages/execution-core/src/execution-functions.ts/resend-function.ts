@@ -18,17 +18,19 @@ export class ResendEmailService {
 
     sendEmail = async ({ from, to, subject, html }: EmailParams)
         : Promise<{ success: boolean; data?: any; error?: string }> => {
-        console.log("Sending Email");
+        // Callers are expected to have already validated from/to/subject/html
+        // are present — no silent fallback to mock content or a hardcoded
+        // recipient here. A falsy field reaching the Resend API is a real
+        // configuration error and should fail loudly.
         const { data, error } = await this.resend.emails.send({
-            from: from || "Acme <onboarding@resend.dev>",
-            to: to || ["sajaldutt.bansal@gmail.com"],
-            subject: subject || "Hello world",
-            html: html || "<strong>This is a sample email</strong>",
+            from: from as string,
+            to: to as string | string[],
+            subject: subject as string,
+            html: html as string,
         });
-        console.log("Email send attemp finished");
-        console.log("Response data: ", { data, error });
 
         if (error) {
+            console.error("Resend send failed:", error.message);
             return { success: false, error: error.message }
         }
 

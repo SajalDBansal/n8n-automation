@@ -20,15 +20,18 @@ export const Agent: NodeExecutionType = {
 
             const { prompt } = parameters;
 
-            if (!prompt.trim()) {
+            if (typeof prompt !== "string" || !prompt.trim()) {
                 return {
                     success: false,
                     error: "User message is required..",
                 };
             }
 
+            // 30s cap so a hung/slow provider response can't occupy a
+            // concurrency slot indefinitely. `timeout` is not a real
+            // `generateText` option in `ai` v6 — `abortSignal` is.
             const response = await generateText({
-                model, prompt: prompt.trim()
+                model, prompt: prompt.trim(), abortSignal: AbortSignal.timeout(30_000)
             })
 
             const agentResult = {

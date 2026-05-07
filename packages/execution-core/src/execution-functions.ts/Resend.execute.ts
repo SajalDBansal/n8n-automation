@@ -1,5 +1,5 @@
 
-import prisma from "@workspace/database"
+import prisma, { decryptCredentialData } from "@workspace/database"
 import type { NodeExecutionType } from "@workspace/types";
 import { ResendEmailService } from "./resend-function";
 
@@ -16,6 +16,14 @@ export const Resend: NodeExecutionType = {
             return { success: false, error: "parameters are not provided" };
         }
 
+        const missingFields = (["from", "to", "subject", "html"] as const).filter(
+            (field) => typeof parameters[field] !== "string" || !(parameters[field] as string).trim()
+        );
+
+        if (missingFields.length > 0) {
+            return { success: false, error: `Missing required field(s): ${missingFields.join(", ")}` };
+        }
+
         if (!projectId) {
             console.error("projectId is not provided");
             return {
@@ -30,18 +38,18 @@ export const Resend: NodeExecutionType = {
             };
         }
 
-        const credential = await prisma.credential.findFirst({
+        const credentialRow = await prisma.credential.findFirst({
             where: { id: credentialId, projectId: projectId },
             select: { data: true },
-        }) as { data: { resendApiKey: string } } | null;
+        });
 
-        // console.log("feteched credential ----> ", credential);
+        const credentialData = credentialRow ? decryptCredentialData<{ resendApiKey: string }>(credentialRow.data) : null;
 
-        if (!credential || !credential.data.resendApiKey) {
+        if (!credentialData || !credentialData.resendApiKey) {
             return { success: false, error: "Bad Request" };
         }
 
-        const resend = new ResendEmailService(credential.data.resendApiKey || "");
+        const resend = new ResendEmailService(credentialData.resendApiKey || "");
 
         const response = await resend.sendEmail({
             from: parameters.from as string,

@@ -1,5 +1,5 @@
 
-import prisma from "@workspace/database"
+import prisma, { decryptCredentialData } from "@workspace/database"
 import type { NodeExecutionType } from "@workspace/types";
 
 export const Telegram: NodeExecutionType = {
@@ -35,13 +35,18 @@ export const Telegram: NodeExecutionType = {
             };
         }
 
-        const credential = await prisma.credential.findFirst({
+        const credentialRow = await prisma.credential.findFirst({
             where: { id: credentialId, projectId: projectId },
             select: { data: true },
-        }) as { data: { accessToken: string } } | null;
+        });
 
-        // console.log("feteched credential ----> ", credential);
-        const url = `https://api.telegram.org/bot${credential?.data?.accessToken}/sendMessage?chat_id=${parameters.chatId}&text=${parameters.text}`;
+        const credentialData = credentialRow ? decryptCredentialData<{ accessToken: string }>(credentialRow.data) : null;
+
+        if (!credentialData?.accessToken) {
+            return { success: false, error: "Telegram credential not found or invalid" };
+        }
+
+        const url = `https://api.telegram.org/bot${credentialData.accessToken}/sendMessage?chat_id=${encodeURIComponent(String(parameters.chatId))}&text=${encodeURIComponent(String(parameters.text))}`;
 
         const response = await fetch(url);
         const data = (await response.json()) as any;
