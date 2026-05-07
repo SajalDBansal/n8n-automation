@@ -4,7 +4,6 @@ import { ManualTriggerMetaData } from "../nodes/ManualTrigger/ManualTrigger.node
 import { ResendMetaData } from "../nodes/Resend/Resend.node";
 import { TelegramMetaData } from "../nodes/Telegram/Telegram.node";
 import { WebhookMetaData } from "../nodes/Webhook/Webhook.node";
-import { GmailOAuth2Api } from "./credentials/GmailOAuth2Api.credentials";
 import { GoogleGeminiApi } from "./credentials/GoogleGeminiApi.credentials";
 import { ResendApi } from "./credentials/ResendApi.credentials";
 import { TelegramApi } from "./credentials/TelegramApi.credentials";
@@ -20,7 +19,6 @@ export const PredefinedNodeMetaData: Record<NodeName, NodeMetaData> = {
 }
 
 export const predefinedCredentialsStructure: Record<NodeCredentialsName, NodeCredentialsType> = {
-    gmailOAuth2Api: GmailOAuth2Api,
     googleGeminiApi: GoogleGeminiApi,
     resendApi: ResendApi,
     telegramApi: TelegramApi
