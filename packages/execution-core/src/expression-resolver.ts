@@ -1,5 +1,6 @@
 import type { NodeOutputDataType } from "@workspace/types";
 
+export class UnresolvedExpressionError extends Error { }
 
 export class ExpressionResolver {
     private nodeOutputs: NodeOutputDataType;
@@ -38,51 +39,54 @@ export class ExpressionResolver {
 
         return str.replace(expressionRegex, (match, expression) => {
             const resolved = this.resolveExpression(expression.trim());
+            // Preserve type for a whole-string expression (handled above);
+            // an object/array embedded in a larger template is serialized
+            // rather than stringified as "[object Object]".
+            if (resolved !== null && typeof resolved === "object") {
+                return JSON.stringify(resolved);
+            }
             return String(resolved ?? "")
         });
     }
 
+    // Throws rather than silently resolving to null — an unresolved
+    // reference (typo'd node id, missing field) used to become an empty
+    // string with no error, which is how a typo'd Resend `to` field ended
+    // up silently mailing nothing. The caller turns this into a per-node
+    // VALIDATION error, matching how other node-level validation failures
+    // are handled — it fails only that node's branch, not the whole run.
     private resolveExpression(expression: string): unknown {
-        try {
-            const parts = expression.split(".");
+        const parts = expression.split(".");
 
-            if (parts.length < 2) {
-                console.warn(`Invalid expression format: ${expression}`);
-                return null;
-            }
-
-            const nodeId = parts[0] ?? "";
-            const path = parts.slice(1);
-            const nodeData = nodeId ? this.nodeOutputs[nodeId] : undefined;
-
-            if (!nodeData) {
-                console.warn(`Node data not found for: ${nodeId}`);
-                return null;
-            }
-
-            let current: any = nodeData;
-            for (const key of path) {
-                if (key.startsWith("[") && key.endsWith("]")) {
-                    const index = parseInt(key.slice(1, -1));
-                    if (Array.isArray(current) && !isNaN(index)) {
-                        current = current[index];
-                    } else {
-                        console.warn(`Invalid array access: ${expression}`);
-                        return null;
-                    }
-                } else if (current && typeof current === "object" && key in current) {
-                    current = current[key];
-                } else {
-                    console.warn(`Path not found: ${expression}`);
-                    return null;
-                }
-            }
-
-            return current;
-        } catch (error) {
-            console.error(`Error resolving expression "${expression}":`, error);
-            return null;
+        if (parts.length < 2) {
+            throw new UnresolvedExpressionError(`Invalid expression format: ${expression}`);
         }
+
+        const nodeId = parts[0] ?? "";
+        const path = parts.slice(1);
+        const nodeData = nodeId ? this.nodeOutputs[nodeId] : undefined;
+
+        if (!nodeData) {
+            throw new UnresolvedExpressionError(`Node data not found for: ${nodeId}`);
+        }
+
+        let current: any = nodeData;
+        for (const key of path) {
+            if (key.startsWith("[") && key.endsWith("]")) {
+                const index = parseInt(key.slice(1, -1));
+                if (Array.isArray(current) && !isNaN(index)) {
+                    current = current[index];
+                } else {
+                    throw new UnresolvedExpressionError(`Invalid array access: ${expression}`);
+                }
+            } else if (current && typeof current === "object" && key in current) {
+                current = current[key];
+            } else {
+                throw new UnresolvedExpressionError(`Path not found: ${expression}`);
+            }
+        }
+
+        return current;
     }
 
     resolveParameters(
