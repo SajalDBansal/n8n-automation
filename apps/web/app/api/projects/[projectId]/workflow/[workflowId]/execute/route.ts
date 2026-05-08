@@ -1,17 +1,19 @@
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 import prisma from "@workspace/database";
 import { NextRequest } from "next/server";
-import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { getSubscriber } from "@/lib/redis-manager";
 import { getExecutionEngine, isWorkerModeEnabled } from "@/lib/execution/execution-engine";
 import { subscribeExecutionEvents } from "@/lib/execution/evevt-emitter";
+import { updateExecutionStatusInDB } from "@workspace/execution-core";
 import { PublishPayloadDataType } from "@workspace/types";
 
 export const GET = async (req: NextRequest, { params }: { params: Promise<{ workflowId: string, projectId: string }> }) => {
     const { workflowId, projectId } = await params;
     // console.log("Received request to execute workflow");
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth.api.getSession({ headers: await headers() });
 
         if (!session?.user?.id) {
             return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -34,6 +36,7 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ work
                 const executionEngine = getExecutionEngine();
                 let channel: string | null = null;
                 let unsubscribeInMemory: (() => void) | null = null;
+                let executionId: string | null = null;
 
                 try {
                     let isClosed = false;
@@ -96,7 +99,7 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ work
                         });
                         return response;
                     });
-                    const executionId = executionResponse.id;
+                    executionId = executionResponse.id;
                     // console.log("ExecutingID", executionId);
 
                     channel = `execution-${executionId}`;
@@ -163,12 +166,22 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ work
                     });
 
                 } catch (error) {
-                    console.error("Error in stream start:", error);
+                    logger.error("Failed to dispatch workflow execution", error, { executionId, workflowId, projectId });
+                    // Named so the client's addEventListener("workflow-error", ...)
+                    // actually fires — an unnamed `data:` frame landed on the
+                    // generic onmessage handler the client never listens to,
+                    // so a pre-run dispatch failure was completely silent.
                     controller.enqueue(
                         encoder.encode(
-                            `data: ${JSON.stringify({ error: "Internal Server Error" })}\n\n`
+                            `event: workflow-error\ndata: ${JSON.stringify({ status: "ERROR", message: "Internal Server Error" })}\n\n`
                         )
                     );
+                    if (executionId) {
+                        // Otherwise this row is orphaned at STARTING forever —
+                        // nothing downstream of a failure this early ever
+                        // touches it again.
+                        await updateExecutionStatusInDB(executionId, "ERROR", true);
+                    }
                     if (workersEnabled && channel && subscriber?.isOpen) {
                         await subscriber.unsubscribe(channel);
                     }

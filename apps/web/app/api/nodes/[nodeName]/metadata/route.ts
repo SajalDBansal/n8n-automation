@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { PredefinedNodeMetaData } from "@workspace/node-base";
 import type { NodeName } from "@workspace/types";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ nodeName: NodeName }> }) {
+export async function GET(_request: Request, { params }: { params: Promise<{ nodeName: string }> }) {
     const { nodeName } = await params;
 
-    const data = PredefinedNodeMetaData[nodeName];
+    const data = PredefinedNodeMetaData[nodeName as NodeName];
 
     if (!data) {
         return NextResponse.json(

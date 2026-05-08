@@ -1,6 +1,7 @@
 import { useProjectStore } from "@/store/projects";
 import { createId } from "@paralleldrive/cuid2";
 import { ProjectType } from "@workspace/types";
+import { toast } from "sonner";
 import { createProject, deleteProjectByID, getAllProjects, updateProjectById } from "../db/project";
 
 export const createProjectOptimistic = async (data: Partial<ProjectType>) => {
@@ -29,11 +30,12 @@ export const createProjectOptimistic = async (data: Partial<ProjectType>) => {
             icon: { type: "ICON", value: "layers" },
         });
 
-        if (!res.success) throw new Error(res.error as string);
+        if (!res.success) throw new Error(res.message ?? "Failed to create project");
         if (res.projectData) updateProject(projectId, res.projectData);
 
     } catch (error) {
         deleteProject(projectId, false);
+        toast.error(error instanceof Error ? error.message : "Failed to create project");
     }
 };
 
@@ -64,11 +66,12 @@ export const updateProjectOptimistic = async (projectId: string, data: Partial<P
             icon: newData.icon,
         });
 
-        if (!res.success) throw new Error(res.error as string);
+        if (!res.success) throw new Error(res.message ?? "Failed to update project");
         if (res.projectData) updateProject(projectId, res.projectData);
 
     } catch (error) {
         updateProject(projectId, currentData);
+        toast.error(error instanceof Error ? error.message : "Failed to update project");
     }
 };
 
@@ -77,16 +80,13 @@ export const deleteProjectOptimistic = async (id: string, force: boolean) => {
 
     try {
         const res = await deleteProjectByID(id, force);
-        if (!res.success) throw new Error(res.error as string);
+        if (!res.success) throw new Error(res.message ?? "Failed to delete project");
         deleteProject(id, force);
 
     } catch (error) {
-        console.error("Error occured while fetch : ", error);
+        console.error("Error deleting project:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to delete project");
     }
-};
-
-export const getProjectById = async () => {
-
 };
 
 export const getAllProjectsOptimistic = async () => {
@@ -95,11 +95,12 @@ export const getAllProjectsOptimistic = async () => {
     try {
         const res = await getAllProjects();
 
-        if (!res.success) throw new Error(res.error as string);
+        if (!res.success) throw new Error(res.message ?? "Failed to fetch projects");
         if (res.projects) setProjects(res.projects);
 
     } catch (error) {
-        console.error("Error occured while fetch : ", error);
+        console.error("Error fetching projects:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to fetch projects");
     }
 
 };

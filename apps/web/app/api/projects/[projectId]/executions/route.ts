@@ -1,10 +1,10 @@
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@workspace/database";
-import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
     const { projectId } = await params;
 
     if (!session || !session.user) {
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
                     success: false,
                     message: "Project not found",
                     error: "Project not found"
-                }, { status: 401 })
+                }, { status: 404 })
             }
         }
 

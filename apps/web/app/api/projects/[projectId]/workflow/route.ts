@@ -1,10 +1,10 @@
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@workspace/database";
-import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
     const { projectId } = await params;
 
     if (!session || !session.user) {
@@ -24,20 +24,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         if (!isValidProject) {
             return NextResponse.json({
                 success: false,
-                message: "Unauthorized Request"
-            }, { status: 401 })
+                message: "Project not found"
+            }, { status: 404 })
         }
 
         const workflows = await prisma.workflow.findMany({ where: { projectId: projectId } });
 
         return NextResponse.json({
             success: true,
-            message: "Workflow added successfully",
+            message: "Workflows fetched successfully",
             workflows
         }, { status: 200 })
 
     } catch (error) {
-        console.error("Error creating workflow : ", error);
+        console.error("Error fetching workflows : ", error);
         return NextResponse.json({
             success: false,
             message: "Internal Server Error",

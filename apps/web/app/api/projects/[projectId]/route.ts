@@ -1,11 +1,11 @@
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@workspace/database";
 import { updateProjectZodSchema } from "@workspace/validators";
-import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
     const { projectId } = await params;
     const url = new URL(request.url);
     const force = url.searchParams.get("force");
@@ -42,10 +42,16 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
         return NextResponse.json({
             success: true,
-            message: "Projects deleted successfully",
+            message: "Project deleted successfully",
         }, { status: 200 })
 
     } catch (error) {
+        if ((error as { code?: string })?.code === "P2025") {
+            return NextResponse.json({
+                success: false,
+                message: "Project not found",
+            }, { status: 404 })
+        }
         console.error("Error in deleting project : ", error);
         return NextResponse.json({
             success: false,
@@ -55,9 +61,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
     const { projectId } = await params;
-    const body = await request.json();
 
     if (!session || !session.user) {
         return NextResponse.json({
@@ -67,6 +72,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const userId = session.user.id;
+
+    let body: unknown;
+    try {
+        body = await request.json();
+    } catch {
+        return NextResponse.json({
+            success: false,
+            message: "Invalid JSON body",
+        }, { status: 400 })
+    }
 
     const validateData = updateProjectZodSchema.safeParse(body);
 
@@ -84,27 +99,23 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             data: validateData.data
         });
 
-        if (!project) {
-            const isProjectExists = await prisma.project.findUnique({
-                where: { id: projectId, userId: userId }
-            });
-
-            if (!isProjectExists) {
-                return NextResponse.json({
-                    success: false,
-                    message: "Unauthorized Request"
-                }, { status: 401 })
-            }
-        }
-
         return NextResponse.json({
             success: true,
-            message: "Projects deleted successfully",
+            message: "Project updated successfully",
             project
         }, { status: 200 })
 
     } catch (error) {
-        console.error("Error in deleting project : ", error);
+        // Prisma throws P2025 rather than returning null when the compound
+        // where clause doesn't match (wrong id, or a different user's
+        // project) — there's no reachable "found but somehow null" case.
+        if ((error as { code?: string })?.code === "P2025") {
+            return NextResponse.json({
+                success: false,
+                message: "Project not found",
+            }, { status: 404 })
+        }
+        console.error("Error updating project : ", error);
         return NextResponse.json({
             success: false,
             message: "Internal Server Error",

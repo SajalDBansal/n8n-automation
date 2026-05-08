@@ -1,10 +1,11 @@
 import { useProjectStore } from "@/store/projects";
 import { createId } from "@paralleldrive/cuid2";
 import { WorkflowType } from "@workspace/types";
+import { toast } from "sonner";
 import { createWorkflow, deleteWorkflowByID, updateWorkflowById } from "../db/workflow";
 
 export const createWorkflowOptimistic = async (projectId: string, data: Partial<WorkflowType>) => {
-    const { addWorkflow } = useProjectStore.getState();
+    const { addWorkflow, deleteWorkflow } = useProjectStore.getState();
     const workflowId = createId();
 
     const newWorkflow = {
@@ -19,11 +20,12 @@ export const createWorkflowOptimistic = async (projectId: string, data: Partial<
 
         const res = await createWorkflow(projectId, newWorkflow);
 
-        if (!res.success) throw new Error(res.error as string);
+        if (!res.success) throw new Error(res.message ?? "Failed to create workflow");
 
     } catch (error) {
         console.error("Error while creating a new workflow:", error);
-
+        deleteWorkflow(projectId, workflowId);
+        toast.error(error instanceof Error ? error.message : "Failed to create workflow");
     }
 };
 
@@ -34,11 +36,12 @@ export const deleteWorkflowOptimistic = async (projectId: string, workflow: { id
 
     try {
         const res = await deleteWorkflowByID(projectId, workflow.id);
-        if (!res.success) throw new Error(res.error as string);
+        if (!res.success) throw new Error(res.message ?? "Failed to delete workflow");
 
     } catch (error) {
-        console.error("Error occured while fetch : ", error);
+        console.error("Error deleting workflow:", error);
         addWorkflow(projectId, workflow);
+        toast.error(error instanceof Error ? error.message : "Failed to delete workflow");
     }
 };
 
@@ -52,14 +55,16 @@ export const updateWorkflowOptimistic = async (projectId: string, workflow: { id
 
     try {
         deleteWorkflow(projectId, workflow.id);
-        addWorkflow(projectId, { id: workflow.id, name: workflow.name });
+        addWorkflow(projectId, { id: workflow.id, name: workflow.name, description: workflow.description });
 
         const res = await updateWorkflowById(projectId, workflow);
 
-        if (!res.success) throw new Error(res.error as string);
+        if (!res.success) throw new Error(res.message ?? "Failed to update workflow");
 
     } catch (error) {
+        console.error("Error updating workflow:", error);
         deleteWorkflow(projectId, workflow.id);
         addWorkflow(projectId, currentWorkflow);
+        toast.error(error instanceof Error ? error.message : "Failed to update workflow");
     }
 };

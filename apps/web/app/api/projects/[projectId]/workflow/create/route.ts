@@ -1,11 +1,11 @@
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@workspace/database";
 import { createWorkflowZodSchema } from "@workspace/validators";
-import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
     const { projectId } = await params;
     const body = await request.json();
 

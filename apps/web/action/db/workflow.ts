@@ -1,6 +1,13 @@
 import { WorkflowType } from "@workspace/types";
 import axios from "axios";
 
+const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (axios.isAxiosError(error)) {
+        return error.response?.data?.message || error.message || fallback;
+    }
+    return error instanceof Error ? error.message : fallback;
+};
+
 type createWorkflowReturn = {
     success: boolean,
     message?: string,
@@ -16,13 +23,14 @@ export const createWorkflow = async (projectId: string, data: Partial<WorkflowTy
 
         return {
             success: true,
-            message: "project created successfully",
+            message: "Workflow created successfully",
             workflow: workflowData
         }
 
     } catch (error) {
         return {
             success: false,
+            message: getErrorMessage(error, "Failed to create workflow"),
             error: error
         }
     }
@@ -31,16 +39,17 @@ export const createWorkflow = async (projectId: string, data: Partial<WorkflowTy
 export const deleteWorkflowByID = async (projectId: string, workflowId: string) => {
 
     try {
-        const res = await axios.delete(`/api/projects/${projectId}/workflow/${workflowId}`);
+        await axios.delete(`/api/projects/${projectId}/workflow/${workflowId}`);
 
         return {
             success: true,
-            message: "workflow deleted successfully",
+            message: "Workflow deleted successfully",
         }
 
     } catch (error) {
         return {
             success: false,
+            message: getErrorMessage(error, "Failed to delete workflow"),
             error: error
         }
     }
@@ -54,13 +63,14 @@ export const getWorkflows = async (projectId: string) => {
 
         return {
             success: true,
-            message: "project created successfully",
+            message: "Workflows fetched successfully",
             workflows: workflowData
         }
 
     } catch (error) {
         return {
             success: false,
+            message: getErrorMessage(error, "Failed to fetch workflows"),
             error: error
         }
     }
@@ -74,13 +84,14 @@ export const getProjectCredentials = async (projectId: string) => {
 
         return {
             success: true,
-            message: "project created successfully",
+            message: "Credentials fetched successfully",
             credentials: credentials
         }
 
     } catch (error) {
         return {
             success: false,
+            message: getErrorMessage(error, "Failed to fetch credentials"),
             error: error
         }
     }
@@ -94,13 +105,14 @@ export const getAllWorkflows = async () => {
 
         return {
             success: true,
-            message: "project created successfully",
+            message: "Workflows fetched successfully",
             workflows: workflows
         }
 
     } catch (error) {
         return {
             success: false,
+            message: getErrorMessage(error, "Failed to fetch workflows"),
             error: error
         }
     }
@@ -108,16 +120,17 @@ export const getAllWorkflows = async () => {
 
 export const updateWorkflowById = async (projectId: string, data: { id: string, name: string, description: string }) => {
     try {
-        const res = await axios.patch(`/api/projects/${projectId}/workflow/${data.id}`, data);
+        await axios.patch(`/api/projects/${projectId}/workflow/${data.id}`, data);
 
         return {
             success: true,
-            message: "project created successfully",
+            message: "Workflow updated successfully",
         }
 
     } catch (error) {
         return {
             success: false,
+            message: getErrorMessage(error, "Failed to update workflow"),
             error: error
         }
     }

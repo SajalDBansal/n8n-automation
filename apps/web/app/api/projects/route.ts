@@ -1,12 +1,12 @@
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@workspace/database";
 import { createProjectZodSchema } from "@workspace/validators";
-import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
     const body = await request.json();
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
 
     if (!session || !session.user) {
         return NextResponse.json({
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
 
     if (!session || !session.user) {
         return NextResponse.json({
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     try {
         const projects = await prisma.project.findMany({
             where: { userId },
-            include: { workflows: { select: { name: true, id: true } } }
+            include: { workflows: { select: { name: true, id: true, description: true } } }
         })
 
         return NextResponse.json({
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         }, { status: 200 })
 
     } catch (error) {
-        console.error("Error in creating project : ", error);
+        console.error("Error in fetching projects : ", error);
         return NextResponse.json({
             success: false,
             message: "Internal Server Error",

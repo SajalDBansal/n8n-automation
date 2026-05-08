@@ -1,11 +1,13 @@
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@workspace/database";
 import { updateWorkflowDataZodSchema } from "@workspace/validators";
-import { getServerSession } from "next-auth";
+import { randomBytes } from "crypto";
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import publicConfig from "@/utils/public-config";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ workflowId: string, projectId: string }> }) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
     const { workflowId, projectId } = await params;
     const body = await request.json();
 
@@ -26,7 +28,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         }, { status: 400 })
     }
 
-    const { name, active, nodes, edges, projectId: projectIdFromClient } = validationResult.data;
+    const { name, active, nodes, edges, projectId: projectIdFromClient, expectedUpdatedAt } = validationResult.data;
 
     try {
 
@@ -43,6 +45,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 name: true,
                 active: true,
                 projectId: true,
+                updatedAt: true,
             }
         });
 
@@ -53,11 +56,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             }, { status: 404 });
         }
 
+        // Optimistic concurrency: the editor sends back the `updatedAt` it
+        // last loaded. If the row has moved on since (another tab, another
+        // device), refuse the overwrite instead of silently clobbering it.
+        if (expectedUpdatedAt && isWorkflowExists.updatedAt.toISOString() !== expectedUpdatedAt) {
+            return NextResponse.json({
+                success: false,
+                message: "This workflow was changed elsewhere since you loaded it. Reload the page to see the latest version before saving.",
+            }, { status: 409 });
+        }
+
         const updatedFlow = await prisma.$transaction(async (tx) => {
 
             await tx.edge.deleteMany({ where: { workflowId: workflowId } });
             await tx.node.deleteMany({ where: { workflowId: workflowId } });
-            await tx.webhook.deleteMany({ where: { workflowId } });
 
             await tx.workflow.update({
                 where: { id: workflowId },
@@ -65,6 +77,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             })
 
             if (nodes.length === 0 && edges.length === 0) {
+                await tx.webhook.deleteMany({ where: { workflowId } });
                 return NextResponse.json({
                     success: true,
                     message: "Workflow Cleared successfully",
@@ -105,6 +118,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 })),
             });
 
+            // Preserve the webhook's HMAC secret across saves — deleting and
+            // recreating the row on every save (the old behavior) would
+            // silently invalidate the signing secret every time the
+            // workflow was saved. Only remove webhook rows that no longer
+            // correspond to a node in this save; upsert the current one so
+            // an existing `secret` survives.
+            const keepWebhookId = webhookNode.length === 1 ? webhookNode[0]?.id ?? null : null;
+            await tx.webhook.deleteMany({
+                where: {
+                    workflowId,
+                    ...(keepWebhookId ? { id: { not: keepWebhookId } } : {}),
+                },
+            });
+
             if (webhookNode.length === 1) {
                 const webhook = webhookNode[0];
                 if (!webhook || !webhook.id) {
@@ -113,18 +140,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                         message: "Webhook node ID is required",
                     }, { status: 400 });
                 }
-                const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/projects/${projectId}/workflow/${workflowId}/webhook/${webhook.id}`;
-                await tx.webhook.create({
-                    data: {
+                const webhookUrl = `${publicConfig.NEXT_PUBLIC_APP_URL}/api/projects/${projectId}/workflow/${workflowId}/webhook/${webhook.id}`;
+                await tx.webhook.upsert({
+                    where: { id: webhook.id },
+                    create: {
                         id: webhook.id,
                         url: webhookUrl,
                         workflowId: workflowId,
-
-                    }
+                        secret: randomBytes(32).toString("hex"),
+                    },
+                    update: {
+                        url: webhookUrl,
+                    },
                 })
             }
 
-            const updatedWorkflow = await prisma.workflow.findFirst({
+            // Must read via `tx`, not the outer `prisma` client — the writes
+            // above haven't committed yet at this point, so a read through
+            // the outer client (a separate DB session) was returning the
+            // pre-update row every time (stale `active` value, empty
+            // nodes/edges), even though the transaction itself committed
+            // correctly.
+            const updatedWorkflow = await tx.workflow.findFirst({
                 where: { id: workflowId },
                 include: { nodes: true, edges: true }
             })
@@ -142,7 +179,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         }, { status: 200 })
 
     } catch (error) {
-        console.log(error);
+        console.error("Error updating workflow:", error);
 
         return NextResponse.json({
             success: false,

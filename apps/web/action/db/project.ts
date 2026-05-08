@@ -1,6 +1,12 @@
-import prisma from "@workspace/database"
-import { ProjectOverviewStatsPageDataType, ProjectType } from "@workspace/types"
+import { ProjectType } from "@workspace/types"
 import axios from "axios"
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (axios.isAxiosError(error)) {
+        return error.response?.data?.message || error.message || fallback;
+    }
+    return error instanceof Error ? error.message : fallback;
+};
 
 type createProjectReturn = {
     success: boolean,
@@ -17,13 +23,14 @@ export const createProject = async (data: Partial<ProjectType>): Promise<createP
 
         return {
             success: true,
-            message: "project created successfully",
+            message: "Project created successfully",
             projectData: projectData
         }
 
     } catch (error) {
         return {
             success: false,
+            message: getErrorMessage(error, "Failed to create project"),
             error: error
         }
     }
@@ -44,13 +51,14 @@ export const getAllProjects = async (): Promise<getAllProjectsReturn> => {
 
         return {
             success: true,
-            message: "projects fetched successfully",
+            message: "Projects fetched successfully",
             projects: projectData
         }
 
     } catch (error) {
         return {
             success: false,
+            message: getErrorMessage(error, "Failed to fetch projects"),
             error: error
         }
     }
@@ -65,16 +73,17 @@ type deleteProjectByIDReturn = {
 export const deleteProjectByID = async (id: string, force: boolean): Promise<deleteProjectByIDReturn> => {
 
     try {
-        const res = await axios.delete(`/api/projects/${id}?force=${force}`);
+        await axios.delete(`/api/projects/${id}?force=${force}`);
 
         return {
             success: true,
-            message: "project deleted if no workflow init",
+            message: "Project deleted successfully",
         }
 
     } catch (error) {
         return {
             success: false,
+            message: getErrorMessage(error, "Failed to delete project"),
             error: error
         }
     }
@@ -88,13 +97,14 @@ export const updateProjectById = async (projectId: string, data: Partial<Project
 
         return {
             success: true,
-            message: "project created successfully",
+            message: "Project updated successfully",
             projectData: projectData
         }
 
     } catch (error) {
         return {
             success: false,
+            message: getErrorMessage(error, "Failed to update project"),
             error: error
         }
     }

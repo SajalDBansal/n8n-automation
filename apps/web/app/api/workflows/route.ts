@@ -1,10 +1,10 @@
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import prisma from "@workspace/database";
-import { getServerSession } from "next-auth";
+import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
 
     if (!session || !session.user) {
         return NextResponse.json({
@@ -23,12 +23,12 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            message: "Projects fetched successfully",
+            message: "Workflows fetched successfully",
             workflows
         }, { status: 200 })
 
     } catch (error) {
-        console.error("Error in creating project : ", error);
+        console.error("Error fetching workflows : ", error);
         return NextResponse.json({
             success: false,
             message: "Internal Server Error",
