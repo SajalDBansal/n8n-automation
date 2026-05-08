@@ -1,12 +1,13 @@
 import prisma from "@workspace/database";
-import { Edge, ExecutionJob, Node, type ExecutionEngine } from "@workspace/types"
-import { getRedisClient } from "../redis-manager";
+import { Edge, ExecutionJob, Node, WebhookTriggerPayload, type ExecutionEngine } from "@workspace/types"
 import { runWorkflowExecution } from "@workspace/execution-core";
 import { publishExecutionEvent } from "./evevt-emitter";
+import config from "@/utils/config";
 
 type ExecutionPayload = {
     nodes: Node[],
     edges: Edge[],
+    triggerPayload?: WebhookTriggerPayload | null,
 }
 
 const isExecutionPayload = (value: unknown): value is ExecutionPayload => {
@@ -30,10 +31,17 @@ const getExecutionPayload = async (executionId: string) => {
     return execution.data;
 }
 
+// TODO: make the flow such that the request from here goes to redis took by webhook
 export class QueueExecutionEngine implements ExecutionEngine {
     async execute(job: ExecutionJob): Promise<void> {
-        const redisClient = await getRedisClient();
-        await redisClient.lPush(`execute-workflow`, JSON.stringify(job));
+        // There is no standalone worker process anywhere in this repo that
+        // ever reads from the `execute-workflow` queue — pushing here and
+        // waiting for a result would hang the request indefinitely. Fail
+        // fast and clearly instead, until a real worker exists.
+        throw new Error(
+            "Worker mode (ENABLE_WORKERS) is enabled, but no worker process consumes the execution queue yet. " +
+            "Unset ENABLE_WORKERS to run executions in-process, or implement the standalone worker before enabling this."
+        );
     }
 }
 
@@ -46,6 +54,7 @@ export class InMemoryExecutionEngine implements ExecutionEngine {
             projectId: job.projectId,
             nodes: executionPayload.nodes,
             edges: executionPayload.edges,
+            triggerPayload: executionPayload.triggerPayload,
         }, {
             publish: async (payload) => {
                 await publishExecutionEvent(job.executionId, payload);
@@ -56,11 +65,7 @@ export class InMemoryExecutionEngine implements ExecutionEngine {
     }
 }
 
-export const isWorkerModeEnabled = () => {
-    const raw = process.env.ENABLE_WORKERS?.trim().toLowerCase();
-    if (!raw) return false;
-    return raw === "true" || raw === "1" || raw === "yes" || raw === "'on";
-}
+export const isWorkerModeEnabled = () => config.ENABLE_WORKERS;
 
 export const getExecutionEngine = (): ExecutionEngine => {
     if (isWorkerModeEnabled()) {

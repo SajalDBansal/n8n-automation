@@ -1,8 +1,16 @@
 "use server";
 import prisma from "@workspace/database";
-import { CredentialsPageReturnType, ExecutionStatusDataType, ProjectOverviewStatsPageDataType, ProjectType } from "@workspace/types";
+import { CredentialsPageReturnType, ExecutionStatusDataType, OverviewStatsPageDataType, ProjectOverviewStatsPageDataType, ProjectType } from "@workspace/types";
+import { auth } from "./auth";
+import { headers } from "next/headers";
 
 export const getProjectOverviewStats = async (projectId: string): Promise<ProjectOverviewStatsPageDataType> => {
+    const session = await auth.api.getSession({ headers: await headers() });
+
+    if (!session || !session.user) {
+        throw new Error("User session not found");
+    }
+
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
@@ -16,7 +24,7 @@ export const getProjectOverviewStats = async (projectId: string): Promise<Projec
         ] = await Promise.all([
 
             prisma.project.findFirst({
-                where: { id: projectId },
+                where: { id: projectId, userId: session.user.id },
                 select: { name: true, description: true, createdAt: true, type: true }
             }),
 
@@ -96,9 +104,15 @@ export const getProjectOverviewStats = async (projectId: string): Promise<Projec
 
 export const getWorkflowById = async (projectId: string, workflowId: string) => {
     try {
+        const session = await auth.api.getSession({ headers: await headers() });
+
+        if (!session || !session.user) {
+            throw new Error("User session not found");
+        }
+
         const [workflow, executionCount] = await Promise.all([
-            await prisma.workflow.findUnique({
-                where: { id: workflowId, projectId: projectId }
+            await prisma.workflow.findFirst({
+                where: { id: workflowId, projectId: projectId, project: { userId: session.user.id } }
             }),
             await prisma.execution.count({ where: { workflowId: workflowId } })
         ])
@@ -114,6 +128,94 @@ export const getWorkflowById = async (projectId: string, workflowId: string) => 
         return null;
     }
 }
+
+export type RecentExecutionRow = {
+    id: string;
+    workflowId: string;
+    workflowName: string;
+    projectId: string;
+    projectName: string;
+    status: string;
+    createdAt: string;
+};
+
+export const getDashboardOverviewStats = async (): Promise<OverviewStatsPageDataType> => {
+    const session = await auth.api.getSession({ headers: await headers() });
+
+    if (!session || !session.user) {
+        throw new Error("User session not found");
+    }
+
+    const userId = session.user.id;
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    try {
+        const [activeProjects, totalWorkflows, totalExecutionsToday, failedExecutionToday] = await Promise.all([
+            prisma.project.count({ where: { userId } }),
+
+            prisma.workflow.count({ where: { project: { userId } } }),
+
+            prisma.execution.count({
+                where: {
+                    workflow: { project: { userId } },
+                    createdAt: { gte: startOfDay },
+                },
+            }),
+
+            prisma.execution.count({
+                where: {
+                    workflow: { project: { userId } },
+                    createdAt: { gte: startOfDay },
+                    status: { in: ["ERROR", "CRASHED"] },
+                },
+            }),
+        ]);
+
+        return { activeProjects, totalWorkflows, totalExecutionsToday, failedExecutionToday };
+    } catch (error) {
+        console.error("Error fetching dashboard overview stats:", error);
+        return { activeProjects: 0, totalWorkflows: 0, totalExecutionsToday: 0, failedExecutionToday: 0 };
+    }
+};
+
+export const getRecentExecutions = async (limit: number = 5): Promise<RecentExecutionRow[]> => {
+    const session = await auth.api.getSession({ headers: await headers() });
+
+    if (!session || !session.user) {
+        throw new Error("User session not found");
+    }
+
+    try {
+        const executions = await prisma.execution.findMany({
+            where: { workflow: { project: { userId: session.user.id } } },
+            include: {
+                workflow: {
+                    select: {
+                        id: true,
+                        name: true,
+                        project: { select: { id: true, name: true } },
+                    },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+            take: limit,
+        });
+
+        return executions.map((execution) => ({
+            id: execution.id,
+            workflowId: execution.workflow.id,
+            workflowName: execution.workflow.name,
+            projectId: execution.workflow.project.id,
+            projectName: execution.workflow.project.name,
+            status: execution.status,
+            createdAt: execution.createdAt.toISOString(),
+        }));
+    } catch (error) {
+        console.error("Error fetching recent executions:", error);
+        return [];
+    }
+};
 
 export const getAllCredentials = async (userId: string): Promise<CredentialsPageReturnType[] | null> => {
     try {
