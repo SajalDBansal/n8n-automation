@@ -1,10 +1,11 @@
 import { createClient } from "redis";
+import config from "@/utils/config";
 
 type RedisClient = ReturnType<typeof createClient>;
 type RedisClientReturn = Awaited<ReturnType<typeof createRedisClient>>;
 
 const createRedisClient = async (): Promise<RedisClient> => {
-    const URL = process.env.REDIS_URL || "redis://localhost:6379";
+    const URL = config.REDIS_URL;
     const client = createClient({
         url: URL,
         socket: {
