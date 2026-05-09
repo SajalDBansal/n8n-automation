@@ -64,4 +64,5 @@ export const updateWorkflowDataZodSchema = z.object({
         required_error: "Project ID is required",
         invalid_type_error: "Project ID needs to be a proper string"
     }),
+    expectedUpdatedAt: z.string().optional(),
 });

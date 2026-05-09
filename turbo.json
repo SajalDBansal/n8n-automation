@@ -2,10 +2,16 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "globalEnv": [
-    "NEXTAUTH_SECRET",
+    "NODE_ENV",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "CREDENTIAL_ENCRYPTION_KEY",
     "PORT",
     "DATABASE_URL",
-    "REDIS_URL"
+    "REDIS_URL",
+    "NEXT_PUBLIC_APP_URL",
+    "ENABLE_WORKERS",
+    "TEST_BASE_URL"
   ],
   "tasks": {
     "build": {
@@ -37,6 +43,12 @@
     "typecheck": {
       "dependsOn": [
         "^typecheck"
+      ]
+    },
+    "test": {
+      "cache": false,
+      "dependsOn": [
+        "^build"
       ]
     },
     "dev": {
