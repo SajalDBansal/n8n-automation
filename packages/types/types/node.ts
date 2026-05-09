@@ -86,14 +86,14 @@ export interface NodeBaseProperties {
     required?: boolean;
 }
 
-export type NodeCredentialsName = "telegramApi" | "resendApi" | "gmailOAuth2Api" | "googleGeminiApi";
+export type NodeCredentialsName = "telegramApi" | "resendApi" | "googleGeminiApi";
 
 export type NodeCredentialsType = {
     name: NodeCredentialsName;
     displayName: string;
     documentationUrl?: string;
     properties: NodeBaseProperties[];
-    test?: () => void;
+    test?: (data: Record<string, unknown>) => Promise<{ status: "OK" | "ERROR"; message: string }>;
 }
 
 export interface CredentialRecord {

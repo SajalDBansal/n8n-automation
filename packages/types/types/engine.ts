@@ -40,12 +40,20 @@ export interface ExecutionJob {
     projectId: string;
 }
 
+export type WebhookTriggerPayload = {
+    method: string;
+    headers: Record<string, string>;
+    query: Record<string, string>;
+    body: unknown;
+}
+
 export type ExecutionRunTimeInput = {
     workflowId: string;
     executionId: string;
     projectId: string;
     nodes: Node[];
-    edges: Edge[]
+    edges: Edge[];
+    triggerPayload?: WebhookTriggerPayload | null;
 }
 
 export type ExecutionEventPublisher = {
@@ -116,17 +124,30 @@ export type PublishPayloadDataType = {
 //     onDelete?: (id: string) => void;
 // }>;
 
+export type EditorHistoryEntry = {
+    nodes: Node[];
+    edges: RFEdge[];
+}
+
 export type EditorStoreType = {
     nodes: Node[];
     edges: RFEdge[];
     workflow: WorkflowType | null;
     isLoading: boolean;
     error: string | null;
+    history: EditorHistoryEntry[];
+    future: EditorHistoryEntry[];
+    isDragging: boolean;
 
     // setters
     setNodes: (nodes: Node[] | ((prev: Node[]) => Node[])) => void;
     setEdges: (edges: RFEdge[] | ((prev: RFEdge[]) => RFEdge[])) => void;
     setWorkflowInEditor: (workflow: WorkflowType) => void;
+
+    // history
+    pushHistory: () => void;
+    undo: () => void;
+    redo: () => void;
 
     // actions
     onNodesChange: (changes: any) => void;

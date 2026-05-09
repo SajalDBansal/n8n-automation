@@ -48,7 +48,7 @@ export type ProjectType = {
     userId: string;
     createdAt: string;
     updatedAt: string;
-    workflows?: { id: string, name: string }[];
+    workflows?: { id: string, name: string, description?: string }[];
 }
 
 export type ProjectStoreType = {
@@ -57,7 +57,7 @@ export type ProjectStoreType = {
     updateProject: (projectId: string, updates: Partial<ProjectType>) => void;
     addProjects: (project: ProjectType) => void;
     deleteProject: (projectId: string, force: boolean) => void;
-    addWorkflow: (projectId: string, workflow: { id: string, name: string }) => void;
+    addWorkflow: (projectId: string, workflow: { id: string, name: string, description?: string }) => void;
     deleteWorkflow: (projectId: string, workflowId: string) => void;
 }
 
