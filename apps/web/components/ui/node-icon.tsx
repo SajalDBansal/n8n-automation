@@ -91,6 +91,8 @@ export function NodeIcon({ icon, size = 'md', className = '' }: NodeIconProps) {
       // Single file icon
       return (
         <Image
+          width={20}
+          height={20}
           src={`/node-icons/${value}`}
           alt="Node icon"
           className={iconClass}
@@ -102,6 +104,8 @@ export function NodeIcon({ icon, size = 'md', className = '' }: NodeIconProps) {
     case 'url':
       return (
         <Image
+          width={20}
+          height={20}
           src={value}
           alt="Node icon"
           className={iconClass}

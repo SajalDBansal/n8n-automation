@@ -8,6 +8,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@workspace
 import { Background, Controls, IsValidConnection, MiniMap, ReactFlow, ReactFlowInstance } from "@xyflow/react";
 import { DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { CircleCheck, Loader2, Redo2, TriangleAlert, Undo2 } from "lucide-react";
 import cuid from "cuid";
 import { Button } from "@workspace/ui/components/button";
 import EditorSidebar from "./editor-sidebar";
@@ -115,11 +116,14 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isExecuting, setIsExecuting] = useState(false);
     const [executionOutput, setExecutionOutput] = useState<unknown>(null);
-    const [isActive, setIsActive] = useState(false);
+    const [isTogglingActive, setIsTogglingActive] = useState(false);
     const workflowStore = useWorkflowStore();
+    const eventSourceRef = useRef<EventSource | null>(null);
     const { nodes,
         edges,
         workflow,
+        history,
+        future,
         setNodes,
         setEdges,
         saveWorkflow,
@@ -127,18 +131,81 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
         setWorkflowInEditor,
         onNodesChange,
         onConnect,
+        updateWorkflowData,
+        pushHistory,
+        undo,
+        redo,
     } = useWorkflowEditor();
 
-    const currentSnapshot = useMemo(
-        () => createSnapshotString(nodes, edges, workflow, projectId),
-        [nodes, edges, workflow, projectId]
-    );
-
+    // Debounced instead of recomputed on every render: nodes/edges change on
+    // every pointer-move frame while dragging a node, and JSON.stringify-ing
+    // the whole workflow on each of those frames was visibly laggy on larger
+    // canvases.
     useEffect(() => {
         if (!savedSnapshotRef.current) return;
 
-        setHasUnsavedChanges(currentSnapshot !== savedSnapshotRef.current);
-    }, [currentSnapshot]);
+        const handle = setTimeout(() => {
+            const snapshot = createSnapshotString(nodes, edges, workflow, projectId);
+            setHasUnsavedChanges(snapshot !== savedSnapshotRef.current);
+        }, 300);
+
+        return () => clearTimeout(handle);
+    }, [nodes, edges, workflow, projectId]);
+
+    // Warn before closing the tab / reloading with unsaved canvas changes.
+    // Next.js App Router has no built-in in-app route-change guard, so this
+    // covers tab close, refresh, and navigating away from the app entirely —
+    // not clicks on in-app links (e.g. the sidebar).
+    useEffect(() => {
+        if (!hasUnsavedChanges) return;
+
+        const handler = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = "";
+        };
+
+        window.addEventListener("beforeunload", handler);
+        return () => window.removeEventListener("beforeunload", handler);
+    }, [hasUnsavedChanges]);
+
+    // Undo / redo keyboard shortcuts (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z or Ctrl+Y).
+    // Ignored while focus is in a text input so native undo in text fields
+    // still works as expected.
+    useEffect(() => {
+        const handler = (event: KeyboardEvent) => {
+            const target = event.target as HTMLElement | null;
+            const isEditableTarget = target && (
+                target.tagName === "INPUT" ||
+                target.tagName === "TEXTAREA" ||
+                target.isContentEditable
+            );
+            if (isEditableTarget) return;
+
+            const modifierKey = event.metaKey || event.ctrlKey;
+            if (!modifierKey || event.key.toLowerCase() !== "z" && event.key.toLowerCase() !== "y") return;
+
+            event.preventDefault();
+
+            if (event.key.toLowerCase() === "y" || (event.key.toLowerCase() === "z" && event.shiftKey)) {
+                redo();
+            } else {
+                undo();
+            }
+        };
+
+        window.addEventListener("keydown", handler);
+        return () => window.removeEventListener("keydown", handler);
+    }, [undo, redo]);
+
+    // Close any still-open execution SSE connection on unmount, so
+    // navigating away mid-execution doesn't leak a connection or call
+    // setState after unmount.
+    useEffect(() => {
+        return () => {
+            eventSourceRef.current?.close();
+            eventSourceRef.current = null;
+        };
+    }, []);
 
     const getWorkflow = async () => {
         try {
@@ -174,7 +241,8 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
             savedSnapshotRef.current = initialSnapshot;
             setHasUnsavedChanges(false);
         } catch (error) {
-            console.log(error);
+            console.error("Error loading workflow:", error);
+            toast.error("Failed to load workflow");
         } finally {
             setLoadingWorkflow(false);
         }
@@ -222,9 +290,6 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
     }, [edges, handleDeleteEdge]);
 
     const handleNodeDoubleClick = (event: React.MouseEvent, node: Node) => {
-        // console.log('executionLogs', executionLogs);
-        // console.log(nodes);
-
         setSelectedNode(node);
         workflowStore.setSelectedNodeId(node.id)
         setIsNodeConfigModelOpen(true);
@@ -374,6 +439,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
                 credentialId: undefined,
             };
 
+            pushHistory();
             workflowStore.addNode(newNode);
             setNodes((prev) => [...prev, newNode]);
         } catch (error) {
@@ -381,7 +447,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
             toast.error("Failed to create node");
         }
 
-    }, [reactFlowInstance, setNodes]);
+    }, [reactFlowInstance, setNodes, nodes, pushHistory, projectId, workflowId]);
 
     const onDragOver = useCallback((event: any) => {
         event.preventDefault()
@@ -406,32 +472,58 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
 
         } catch (error) {
             console.error("Error saving workflow:", error);
-            toast.error('Error saving workflow. Please try again.');
+            toast.error(useWorkflowEditor.getState().error || 'Error saving workflow. Please try again.');
         } finally {
             setIsSaving(false);
         }
     };
 
+    const handleToggleActive = async () => {
+        if (!workflow || isTogglingActive) return;
+
+        const nextActive = !workflow.active;
+        const previousActive = workflow.active;
+
+        updateWorkflowData({ active: nextActive });
+        setIsTogglingActive(true);
+
+        try {
+            await saveWorkflow(projectId, workflowId);
+            toast.success(nextActive ? 'Workflow activated' : 'Workflow deactivated');
+        } catch (error) {
+            console.error("Error toggling workflow active state:", error);
+            updateWorkflowData({ active: previousActive });
+            toast.error('Failed to update workflow status. Please try again.');
+        } finally {
+            setIsTogglingActive(false);
+        }
+    };
+
     const handleExecuteWorkflow = async () => {
+        if (isExecuting) return;
+
+        // De-dup against a still-open prior connection (e.g. a leftover from
+        // a previous run that never reached a terminal event).
+        eventSourceRef.current?.close();
 
         setNodeExecutionStates({});
         setExecutionLogs([]);
         setIsExecuting(true);
 
         const eventSource = new EventSource("/api/projects/" + projectId + "/workflow/" + workflowId + "/execute");
+        eventSourceRef.current = eventSource;
 
-        eventSource.onopen = (event) => {
-            console.log("Connection opened:", event);
-            // toast.success('Workflow execution started', {
-            //     id: 'workflow-execution',
-            // });
-        }
+        const closeEventSource = () => {
+            eventSource.close();
+            if (eventSourceRef.current === eventSource) {
+                eventSourceRef.current = null;
+            }
+        };
 
         let toastId: string | number = 0;
 
         eventSource.addEventListener("workflow-update", (event) => {
             const data: ExecutionMessage = JSON.parse(event.data);
-            console.log(data);
 
             setExecutionLogs((logs) => [...logs, data]);
 
@@ -488,7 +580,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
             // SUCCESS handling
             if (data.status === "FINISHED") {
                 setIsExecuting(false);
-                eventSource.close();
+                closeEventSource();
 
                 workflowStore.setJsonOutputs(data.json!);
                 setExecutionOutput(data.json);
@@ -499,11 +591,10 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
 
         eventSource.addEventListener("workflow-error", (event) => {
             const data: ExecutionMessage = JSON.parse(event.data);
-            console.log(data);
 
             setExecutionLogs((logs) => [...logs, data]);
             setIsExecuting(false);
-            eventSource.close();
+            closeEventSource();
 
             if (data.nodeData) {
                 const nodeData = data.nodeData;
@@ -548,7 +639,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
 
         eventSource.onerror = () => {
             setIsExecuting(false);
-            eventSource.close();
+            closeEventSource();
 
             toast.error('Connection lost during execution', {
                 duration: 5000,
@@ -563,9 +654,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
     };
 
     const handleNodeSave = (updatedNode: Node) => {
-
-        // console.log(updatedNode);
-
+        pushHistory();
         setNodes((currentNodes) => {
             const updatedNodes = currentNodes.map((node) =>
                 node.id === updatedNode.id ? updatedNode : node
@@ -624,6 +713,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
                                     onInit={setReactFlowInstance}
                                     onDrop={onDrop}
                                     onDragOver={onDragOver}
+                                    deleteKeyCode={["Backspace", "Delete"]}
                                 // onClick={handleClickCanvas}
                                 >
                                     <Controls position="top-left" className="text-black" />
@@ -668,7 +758,27 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
                         </div>
                     ) : (
                         <div className="flex flex-col gap-2">
-                            <div className="flex gap-3 p-4">
+                            <div className="flex gap-2 px-4 pt-4">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={undo}
+                                    disabled={history.length === 0}
+                                    title="Undo (Ctrl+Z)"
+                                >
+                                    <Undo2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={redo}
+                                    disabled={future.length === 0}
+                                    title="Redo (Ctrl+Shift+Z)"
+                                >
+                                    <Redo2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <div className="flex gap-3 p-4 pt-0">
                                 <Button
                                     onClick={handleSave}
                                     disabled={isSaving || !hasUnsavedChanges}
@@ -683,6 +793,26 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
                                     {isExecuting ? 'Executing...' : 'Execute Workflow'}
                                 </Button>
                             </div>
+                            <div className="px-4">
+                                <button
+                                    type="button"
+                                    onClick={handleToggleActive}
+                                    disabled={isTogglingActive || !workflow}
+                                    className={`flex items-center gap-1.5 text-xs font-mono px-2 py-1 rounded-md border font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${workflow?.active
+                                        ? "bg-green-500/40 text-green-500 border-green-500/20 hover:bg-green-500/50"
+                                        : "bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20"
+                                        }`}
+                                >
+                                    {isTogglingActive ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : workflow?.active ? (
+                                        <CircleCheck className="h-3 w-3" />
+                                    ) : (
+                                        <TriangleAlert className="h-3 w-3" />
+                                    )}
+                                    <span>{workflow?.active ? "Active" : "Inactive"}</span>
+                                </button>
+                            </div>
 
                             <EditorSidebar nodes={nodes} />
                         </div>
@@ -693,6 +823,7 @@ export default function WorkflowEditor({ workflowId, projectId }: { workflowId: 
 
             <NodeConfigDrawer
                 projectId={projectId}
+                workflowId={workflowId}
                 node={selectedNode}
                 isOpen={isNodeConfigModelOpen}
                 onClose={handleNodeModalClose}

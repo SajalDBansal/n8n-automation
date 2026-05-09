@@ -1,6 +1,53 @@
-import { BookOpen, ExternalLink, Mail, Send, Bot, Sparkles, MousePointerClick } from "lucide-react";
+"use client";
 
-export function WebhookDocs() {
+import { BookOpen, ExternalLink, Mail, Send, Bot, Sparkles, MousePointerClick, Copy, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+
+type WebhookDocsProps = {
+    projectId: string;
+    workflowId: string;
+    webhookId: string;
+}
+
+export function WebhookDocs({ projectId, workflowId, webhookId }: WebhookDocsProps) {
+    const [secret, setSecret] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const run = async () => {
+            try {
+                const res = await fetch(`/api/projects/${projectId}/workflow/${workflowId}/webhook/${webhookId}/secret`);
+                const data = await res.json();
+                if (!cancelled && data.success) setSecret(data.secret);
+            } catch {
+                // Non-fatal — the signing snippet just won't show.
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+
+        run();
+        return () => { cancelled = true; };
+    }, [projectId, workflowId, webhookId]);
+
+    const webhookUrl = typeof window !== "undefined"
+        ? `${window.location.origin}/api/projects/${projectId}/workflow/${workflowId}/webhook/${webhookId}`
+        : "";
+
+    const curlExample = secret
+        ? `BODY='{"example":"payload"}'\nSIGNATURE=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "${secret}" | sed 's/^.* //')\ncurl -X POST "${webhookUrl}" \\\n  -H "Content-Type: application/json" \\\n  -H "x-webhook-signature: sha256=$SIGNATURE" \\\n  -d "$BODY"`
+        : "";
+
+    const copySecret = () => {
+        if (!secret) return;
+        navigator.clipboard.writeText(secret);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    };
+
     return (
         <div className="h-full overflow-y-auto mt-4">
             <div className="max-w-3xl mx-auto space-y-6">
@@ -73,9 +120,42 @@ export function WebhookDocs() {
                         </li>
                         <li>
                             <span className="font-medium text-foreground">Authentication:</span>
-                            <span className="text-muted-foreground"> Configure security if needed</span>
+                            <span className="text-muted-foreground"> Every trigger is signed with a per-webhook secret</span>
                         </li>
                     </ul>
+                </div>
+
+                {/* Signing secret */}
+                <div className="rounded-xl border bg-background p-4 shadow-sm">
+                    <h4 className="text-sm font-semibold mb-3 text-foreground">
+                        Signing Secret
+                    </h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                        Requests to this webhook must include a valid <code className="text-xs bg-muted px-1 py-0.5 rounded">x-webhook-signature</code> header
+                        (HMAC-SHA256 of the raw request body, using the secret below) or they're rejected with a 401.
+                    </p>
+                    {loading ? (
+                        <p className="text-sm text-muted-foreground">Loading secret...</p>
+                    ) : secret ? (
+                        <>
+                            <div className="flex items-center gap-2 mb-3">
+                                <code className="text-xs bg-muted px-2 py-1.5 rounded flex-1 overflow-x-auto whitespace-nowrap">
+                                    {secret}
+                                </code>
+                                <button
+                                    type="button"
+                                    onClick={copySecret}
+                                    className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
+                                    title="Copy secret"
+                                >
+                                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                </button>
+                            </div>
+                            <pre className="text-xs bg-muted p-3 rounded overflow-x-auto whitespace-pre-wrap">{curlExample}</pre>
+                        </>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">Save the workflow first to generate a secret.</p>
+                    )}
                 </div>
 
             </div>

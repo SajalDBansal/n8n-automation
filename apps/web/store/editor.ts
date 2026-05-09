@@ -25,12 +25,17 @@ const normalizeEdgeHandles = <T extends { sourceHandle?: unknown; targetHandle?:
     };
 };
 
+const MAX_HISTORY = 50;
+
 export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
     nodes: [],
     edges: [],
     workflow: null,
     isLoading: false,
     error: null,
+    history: [],
+    future: [],
+    isDragging: false,
 
     // setters
     setNodes: (updater) => set((state) => ({
@@ -39,7 +44,33 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
     setEdges: (updater) => set((state) => ({
         edges: typeof updater === "function" ? updater(state.edges) : updater
     })),
-    setWorkflowInEditor: (workflow) => set({ workflow }),
+    setWorkflowInEditor: (workflow) => set({ workflow, history: [], future: [] }),
+
+    // history
+    pushHistory: () => set((state) => ({
+        history: [...state.history, { nodes: state.nodes, edges: state.edges }].slice(-MAX_HISTORY),
+        future: [],
+    })),
+    undo: () => set((state) => {
+        if (state.history.length === 0) return state;
+        const previous = state.history[state.history.length - 1]!;
+        return {
+            nodes: previous.nodes,
+            edges: previous.edges,
+            history: state.history.slice(0, -1),
+            future: [{ nodes: state.nodes, edges: state.edges }, ...state.future].slice(0, MAX_HISTORY),
+        };
+    }),
+    redo: () => set((state) => {
+        if (state.future.length === 0) return state;
+        const next = state.future[0]!;
+        return {
+            nodes: next.nodes,
+            edges: next.edges,
+            future: state.future.slice(1),
+            history: [...state.history, { nodes: state.nodes, edges: state.edges }].slice(-MAX_HISTORY),
+        };
+    }),
 
     // actions
     onNodesChange: (changes) => {
@@ -47,6 +78,10 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
             const deletedNodeIds = changes
                 .filter((c: any) => c.type === "remove")
                 .map((c: any) => c.id);
+
+            const dragStarting = changes.some((c: any) => c.type === "position" && c.dragging === true) && !state.isDragging;
+            const dragEnding = changes.some((c: any) => c.type === "position" && c.dragging === false);
+            const shouldSnapshot = deletedNodeIds.length > 0 || dragStarting;
 
             let updatedEdges = state.edges;
 
@@ -61,14 +96,27 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
             return {
                 nodes: applyNodeChanges(changes, state.nodes),
                 edges: updatedEdges,
+                isDragging: dragStarting ? true : dragEnding ? false : state.isDragging,
+                ...(shouldSnapshot ? {
+                    history: [...state.history, { nodes: state.nodes, edges: state.edges }].slice(-MAX_HISTORY),
+                    future: [],
+                } : {}),
             };
         });
     },
 
     onEdgesChange: (changes) => {
-        set((state) => ({
-            edges: applyEdgeChanges(changes, state.edges),
-        }));
+        set((state) => {
+            const hasRemoval = changes.some((c: any) => c.type === "remove");
+
+            return {
+                edges: applyEdgeChanges(changes, state.edges),
+                ...(hasRemoval ? {
+                    history: [...state.history, { nodes: state.nodes, edges: state.edges }].slice(-MAX_HISTORY),
+                    future: [],
+                } : {}),
+            };
+        });
     },
 
     onConnect: (params) => {
@@ -80,11 +128,10 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
             };
             let edges = state.edges;
 
-            // Agent bottom handles
-            if (
-                safeParams.sourceHandle &&
-                ["chat-model", "memory", "tool"].includes(safeParams.sourceHandle)
-            ) {
+            // Agent's chat-model handle only ever has one connection — the
+            // UI only ever produces "chat-model", never "memory"/"tool"
+            // (those never shipped), so only that handle is checked.
+            if (safeParams.sourceHandle === "chat-model") {
                 edges = edges.filter(
                     (e) =>
                         !(
@@ -95,14 +142,15 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
             }
 
             // Model → agent restriction
-            if (
-                safeParams.targetHandle &&
-                ["chat-model", "memory", "tool"].includes(safeParams.targetHandle)
-            ) {
+            if (safeParams.targetHandle === "chat-model") {
                 edges = edges.filter((e) => e.source !== safeParams.source);
             }
 
-            return { edges: addEdge(safeParams, edges) };
+            return {
+                edges: addEdge(safeParams, edges),
+                history: [...state.history, { nodes: state.nodes, edges: state.edges }].slice(-MAX_HISTORY),
+                future: [],
+            };
         });
     },
 
@@ -129,7 +177,8 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
                 nodes: newNodes,
                 edges: edges.map((e) => normalizeEdgeHandles(e)),
                 active: workflow.active,
-                projectId: projectId
+                projectId: projectId,
+                expectedUpdatedAt: workflow.updatedAt,
             };
 
             const res = await axios.patch(
@@ -150,7 +199,10 @@ export const useWorkflowEditor = create<EditorStoreType>((set, get) => ({
             useWorkflowStore.getState().setWorkflow(res.data.workflow);
 
         } catch (err) {
-            set({ error: "Failed to save workflow" });
+            const conflictMessage = axios.isAxiosError(err) && err.response?.status === 409
+                ? (err.response?.data?.message as string | undefined) ?? "This workflow was changed elsewhere. Reload before saving."
+                : "Failed to save workflow";
+            set({ error: conflictMessage });
             throw err;
         }
     },

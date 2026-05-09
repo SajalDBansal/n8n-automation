@@ -11,7 +11,7 @@ export const OVERVIEW_STATS_BASE_DATA: OverviewStatsPageType[] = [
 
         id: "totalWorkflows",
         title: "Total Workflows",
-        description: "Actice Workflows Available",
+        description: "Active Workflows Available",
         icon: Waypoints,
     },
     {
@@ -33,7 +33,7 @@ export const PROJECT_OVERVIEW_STATS_BASE_DATA: ProjectOverviewStatsPageType[] = 
 
         id: "totalWorkflows",
         title: "Total Workflows",
-        description: "Actice Workflows Available",
+        description: "Active Workflows Available",
         icon: Waypoints,
     },
     {

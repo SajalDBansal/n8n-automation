@@ -22,6 +22,7 @@ import CredentialConfigDrawer from "../credentials/credential-config-dialog";
 
 type NodeConfigDrawerProps = {
     projectId: string;
+    workflowId: string;
     node: Node | null;
     isOpen: boolean;
     onClose: () => void;
@@ -29,7 +30,7 @@ type NodeConfigDrawerProps = {
 }
 
 export default function NodeConfigDrawer({
-    projectId, node, isOpen, onClose, onSave
+    projectId, workflowId, node, isOpen, onClose, onSave
 }: NodeConfigDrawerProps) {
     const [nodeData, setNodeData] = useState<Node | null>(node);
     const [credentials, setCredentials] = useState<CredentialRecord[]>([]);
@@ -55,6 +56,7 @@ export default function NodeConfigDrawer({
 
     const fetchCredentials = useCallback(async () => {
         if (!nodeData?.data.credentials || nodeData.data.credentials.length === 0) {
+            setCredentials([]);
             return;
         }
         const cred = await getNodeCredentials(nodeData.data.credentials || [], projectId);
@@ -64,7 +66,10 @@ export default function NodeConfigDrawer({
     const handleParametersChange = (key: string, value: string | number | boolean) => {
         if (!nodeData) return;
 
-        workflowStore.nodeParameterChangeHandler(key, value);
+        // Only touch local dialog state here — writing into the global
+        // workflow store on every keystroke meant Cancel only discarded the
+        // local copy while the store (and canvas) had already diverged.
+        // The store is updated once, on Save, via onSave -> handleNodeSave.
         setNodeData((prev: Node | null) => {
             if (!prev) return null;
             return {
@@ -135,7 +140,7 @@ export default function NodeConfigDrawer({
         <Dialog open={isOpen} onOpenChange={(open) => {
             if (!open) onClose();
         }}>
-            <DialogContent className='max-w-7xl flex flex-col p-0' style={{ height: "80vh", overflowY: "hidden" }}>
+            <DialogContent className='flex flex-col p-0 sm:max-w-7xl' style={{ height: "80vh", overflowY: "hidden" }}>
                 <DialogHeader>
                     <DialogTitle className='border-b p-4'>
                         <div className="flex justify-between w-full pr-2">
@@ -225,7 +230,7 @@ export default function NodeConfigDrawer({
 
                                     <div className="space-y-6">
                                         <div>
-                                            <h4 className="font-semibold text-lg text-gray-900 mb-4">Credentials</h4>
+                                            <h4 className="font-semibold text-lg text-foreground mb-4">Credentials</h4>
                                             <div className="space-y-4">
                                                 <CredentialsSection
                                                     credentials={nodeData?.data?.credentials || []}
@@ -242,12 +247,12 @@ export default function NodeConfigDrawer({
                                         {/* Dynamic Properties */}
                                         {Object.keys(nodeData?.data?.properties || {}).length > 0 && (
                                             <div>
-                                                <h4 className="font-semibold text-lg text-gray-900 mb-4">Configuration</h4>
+                                                <h4 className="font-semibold text-lg text-foreground mb-4">Configuration</h4>
                                                 <div className="space-y-4">
                                                     {Object.keys(nodeData?.data.properties || {}).map((key) => {
                                                         const property = nodeData?.data.properties[key]
 
-                                                        if (property.type === 'notice') {
+                                                        if (property.type === 'NOTICE') {
                                                             return (
                                                                 <div key={key}>
                                                                     {renderProperty(property)}
@@ -257,7 +262,7 @@ export default function NodeConfigDrawer({
 
                                                         return (
                                                             <div key={key} className="space-y-1">
-                                                                <label className="text-sm font-medium text-gray-700 block">
+                                                                <label className="text-sm font-medium text-foreground/80 block">
                                                                     {property.displayName}
                                                                     {property.required && <span className="text-red-500 ml-1">*</span>}
                                                                 </label>
@@ -265,7 +270,7 @@ export default function NodeConfigDrawer({
                                                                     {renderProperty(property)}
                                                                 </div>
                                                                 {property.description && (
-                                                                    <p className="text-xs text-gray-500 mt-2">{property.description}</p>
+                                                                    <p className="text-xs text-muted-foreground mt-2">{property.description}</p>
                                                                 )}
                                                             </div>
                                                         )
@@ -321,7 +326,7 @@ export default function NodeConfigDrawer({
                                                 type="text"
                                                 placeholder="Enter description"
                                                 onChange={(e) => handleDescriptionChange(e.target.value)}
-                                                value={node?.description || node?.data.nodeDefaultDescription}
+                                                value={nodeData?.description ?? nodeData?.data.nodeDefaultDescription ?? ""}
                                             />
                                             <FieldDescription>
                                                 Add a description for the node.
@@ -337,8 +342,8 @@ export default function NodeConfigDrawer({
                                 value="docs"
                                 className="flex-1 overflow-hidden data-[state=active]:flex flex-col"
                             >
-                                {nodeData?.name === "webhook" && (
-                                    <WebhookDocs />
+                                {nodeData?.name === "webhook" && nodeData.id && (
+                                    <WebhookDocs projectId={projectId} workflowId={workflowId} webhookId={nodeData.id} />
                                 )}
 
                                 {nodeData?.name === "manualTrigger" && (

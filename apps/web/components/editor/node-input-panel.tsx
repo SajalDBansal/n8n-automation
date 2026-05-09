@@ -36,7 +36,7 @@ export default function NodeInputPanel({ nodeInputs, nodeId }: NodeInputPanelPro
                     Node Input
                 </div>
                 {hasInputs && (
-                    <span className="text-xs text-gray-600 bg-gray-200 px-2 py-1 rounded-full ml-auto">
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full ml-auto">
                         {Object.keys(nodeInputs).length} {Object.keys(nodeInputs).length === 1 ? 'input' : 'inputs'}
                     </span>
                 )}
@@ -45,7 +45,7 @@ export default function NodeInputPanel({ nodeInputs, nodeId }: NodeInputPanelPro
 
             <Separator />
 
-            <div className="flex-1 overflow-y-auto p-3 bg-gray-50 h-full">
+            <div className="flex-1 overflow-y-auto p-3 bg-muted/30 h-full">
                 {hasInputs ? (
                     <div className="space-y-2">
                         {Object.keys(nodeInputs).map((inputNodeId) => (
@@ -91,15 +91,15 @@ function NodeInputSection({ nodeId, nodeData, isExpanded, onToggle, expandedPath
     const hasData = nodeDataObj && Object.keys(nodeDataObj).length > 0;
 
     return (
-        <div className="border border-gray-200 rounded-lg mb-3 overflow-hidden shadow-sm">
+        <div className="border border-border rounded-lg mb-3 overflow-hidden shadow-sm">
             <div
                 className={`flex items-center gap-3 p-3  cursor-pointer transition-colors`}
                 onClick={onToggle}
             >
                 {isExpanded ? (
-                    <ChevronDown className="w-5 h-5 text-gray-600" />
+                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
                 ) : (
-                    <ChevronRight className="w-5 h-5 text-gray-600" />
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
                 )}
 
                 <div className="flex items-center gap-2">
@@ -109,14 +109,14 @@ function NodeInputSection({ nodeId, nodeData, isExpanded, onToggle, expandedPath
                 </div>
 
                 {hasData && (
-                    <span className="text-xs text-gray-600 bg-white bg-opacity-70 px-2 py-1 rounded-full ml-auto">
+                    <span className="text-xs text-muted-foreground bg-background/70 px-2 py-1 rounded-full ml-auto">
                         {Object.keys(nodeDataObj).length} {Object.keys(nodeDataObj).length === 1 ? 'property' : 'properties'}
                     </span>
                 )}
             </div>
 
             {isExpanded && (
-                <div className="p-4 bg-white">
+                <div className="p-4 bg-background">
                     {hasData ? (
                         <div className="space-y-1">
                             {Object.keys(nodeDataObj).map((key, index) =>
@@ -132,7 +132,7 @@ function NodeInputSection({ nodeId, nodeData, isExpanded, onToggle, expandedPath
                             )}
                         </div>
                     ) : (
-                        <div className="text-center py-4 text-gray-500">
+                        <div className="text-center py-4 text-muted-foreground">
                             <p className="text-sm">No data available for this node</p>
                         </div>
                     )}
@@ -176,7 +176,7 @@ function RenderKeyValue({ keyVal, value, depth = 0, nodeId = "", pathPrefix = ""
                         <div className="w-4 h-4" />
                     )}
                     <span
-                        className={`text-sm font-medium text-gray-700 cursor-grab ${depth === 0 ? 'font-semibold text-blue-700' : ''}`}
+                        className={`text-sm font-medium text-foreground/80 cursor-grab ${depth === 0 ? 'font-semibold text-primary' : ''}`}
                         onDragStart={(ev) => {
                             // console.log("Dragging object path:", fullPath);
                             ev.dataTransfer.setData("text", `{{ ${fullPath} }}`);
@@ -189,14 +189,14 @@ function RenderKeyValue({ keyVal, value, depth = 0, nodeId = "", pathPrefix = ""
                         {keyVal}
                     </span>
                     {hasChildren && (
-                        <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
                             {Object.keys(objectValue).length} {Object.keys(objectValue).length === 1 ? 'item' : 'items'}
                         </span>
                     )}
                 </div>
 
                 {isExpanded && hasChildren && (
-                    <div className={`ml-6 border-l-2 border-gray-200 pl-4 space-y-1`}>
+                    <div className={`ml-6 border-l-2 border-border pl-4 space-y-1`}>
                         {Object.keys(objectValue).map((subKey) =>
                             < RenderKeyValue
                                 key={subKey}
@@ -226,7 +226,7 @@ function RenderKeyValue({ keyVal, value, depth = 0, nodeId = "", pathPrefix = ""
                         <ChevronRight className="w-4 h-4" />
                     )}
                     <span
-                        className="text-sm font-medium text-gray-700 cursor-grab"
+                        className="text-sm font-medium text-foreground/80 cursor-grab"
                         onDragStart={(ev) => {
                             // console.log("Dragging array path:", fullPath);
                             ev.dataTransfer.setData("text", `{{ ${fullPath} }}`);
@@ -238,13 +238,13 @@ function RenderKeyValue({ keyVal, value, depth = 0, nodeId = "", pathPrefix = ""
                     >
                         {keyVal}
                     </span>
-                    <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
                         Array ({value.length} {value.length === 1 ? 'item' : 'items'})
                     </span>
                 </div>
 
                 {isExpanded && (
-                    <div className="ml-6 border-l-2 border-gray-200 pl-4 space-y-1">
+                    <div className="ml-6 border-l-2 border-border pl-4 space-y-1">
                         {value.map((item, index) =>
                             <RenderKeyValue
                                 key={index}
@@ -263,10 +263,10 @@ function RenderKeyValue({ keyVal, value, depth = 0, nodeId = "", pathPrefix = ""
         )
     } else {
         return (
-            <div key={keyVal} className="flex items-center gap-2 mb-2 p-2 hover:bg-blue-50 rounded-md group transition-colors">
+            <div key={keyVal} className="flex items-center gap-2 mb-2 p-2 hover:bg-primary/10 rounded-md group transition-colors">
                 <div className="w-4 h-4" />
                 <span
-                    className="text-sm font-medium text-gray-700 min-w-0 shrink-0 cursor-grab select-none hover:text-blue-600 hover:bg-blue-100 px-2 py-1 rounded border-2 border-dashed border-transparent hover:border-blue-300 transition-all"
+                    className="text-sm font-medium text-foreground/80 min-w-0 shrink-0 cursor-grab select-none hover:text-primary hover:bg-primary/10 px-2 py-1 rounded border-2 border-dashed border-transparent hover:border-primary/40 transition-all"
                     onDragStart={(ev) => {
                         // console.log("Dragging full path:", fullPath);
                         ev.dataTransfer.setData("text", `{{ ${fullPath} }}`);
@@ -280,10 +280,10 @@ function RenderKeyValue({ keyVal, value, depth = 0, nodeId = "", pathPrefix = ""
                 >
                     {keyVal}:
                 </span>
-                <span className="text-sm text-gray-600 break-all min-w-0 flex-1">
+                <span className="text-sm text-muted-foreground break-all min-w-0 flex-1">
                     {String(value)}
                 </span>
-                <span className="text-xs text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span className="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                     drag
                 </span>
             </div>

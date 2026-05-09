@@ -1,7 +1,6 @@
 import { NodeBaseProperties } from "@workspace/types";
 import { Input } from "@workspace/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
-import { Textarea } from "@workspace/ui/components/textarea"
 import { Info } from "lucide-react";
 
 type NodePropertyRendererProps = {
@@ -69,13 +68,6 @@ export function PropertyRenderer({ property, value, onChange, }: NodePropertyRen
                 </div>
             )
 
-        // case 'callout':
-        //     return (
-        //         <div className="p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800">
-        //             {property.displayName}
-        //         </div>
-        //     )
-
         case "STRING":
             return (
                 <Input
@@ -86,16 +78,6 @@ export function PropertyRenderer({ property, value, onChange, }: NodePropertyRen
                     className=" transition-all"
                 />
             )
-
-        // case 'number': // i haven't made it droppable yet, because ther is no property of type number yet in any node
-        //     return (
-        //         <Input
-        //             type="number"
-        //             value={currentValue.toString()}
-        //             onChange={(e) => onChange(Number(e.target.value))}
-        //             className="mt-2"
-        //         />
-        //     )
 
         case "OPTIONS":
             return (
@@ -115,34 +97,6 @@ export function PropertyRenderer({ property, value, onChange, }: NodePropertyRen
                     </SelectContent>
                 </Select>
             )
-
-        // case 'boolean':
-        //     return (
-        //         <Select
-        //             value={currentValue.toString()}
-        //             onValueChange={(value) => onChange(value === 'true')}
-        //         >
-        //             <SelectTrigger className="mt-2">
-        //                 <SelectValue />
-        //             </SelectTrigger>
-        //             <SelectContent>
-        //                 <SelectItem value="true">True</SelectItem>
-        //                 <SelectItem value="false">False</SelectItem>
-        //             </SelectContent>
-        //         </Select>
-        //     )
-
-        // case 'textarea':
-        //     return (
-        //         <Textarea
-        //             placeholder={property.placeholder || ''}
-        //             value={currentValue.toString()}
-        //             {...dragProps}
-        //             onChange={(e) => onChange(e.target.value)}
-        //             className="mt-2 transition-all font-mono"
-        //             rows={property.rows || 3}
-        //         />
-        //     )
 
         default:
             return (

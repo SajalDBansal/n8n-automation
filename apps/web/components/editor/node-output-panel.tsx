@@ -14,7 +14,7 @@ export default function NodeOutputPanel({ output }: { output: { json?: Record<st
 
             <Separator />
 
-            <div className="flex-1 overflow-y-auto p-3 bg-gray-50 h-full">
+            <div className="flex-1 overflow-y-auto p-3 bg-muted/30 h-full">
                 {json && Object.keys(json).length > 0 ? (
                     Object.keys(json).map((key) => (
                         <div key={key} className="mb-3">
@@ -46,7 +46,7 @@ const renderKeyValue = (key: string, value: unknown) => {
                 key={key}
                 className="mb-3 flex flex-col gap-2 "
             >
-                <span className="text-sm  text-gray-700 px-3 py-1 bg-gray-200 rounded-md inline-block w-fit">
+                <span className="text-sm  text-foreground/80 px-3 py-1 bg-muted rounded-md inline-block w-fit">
                     {key}
                 </span>
                 <div className="ml-4 flex flex-col gap-2">
@@ -62,10 +62,10 @@ const renderKeyValue = (key: string, value: unknown) => {
                 key={key}
                 className="flex gap-2 mb-2 "
             >
-                <span className="text-sm  text-gray-700 px-3 py-1 bg-gray-200 rounded-md inline-block w-fit">
+                <span className="text-sm  text-foreground/80 px-3 py-1 bg-muted rounded-md inline-block w-fit">
                     {key}
                 </span>
-                <span className="text-sm text-gray-600 break-all">{String(value)}</span>
+                <span className="text-sm text-muted-foreground break-all">{String(value)}</span>
             </div>
         );
     }
