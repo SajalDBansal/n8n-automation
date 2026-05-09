@@ -1,12 +1,14 @@
 "use client";
 import { deleteProjectOptimistic } from "@/action/client/project";
 import { useProjectStore } from "@/store/projects";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@workspace/ui/components/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@workspace/ui/components/dropdown-menu";
 import { motion } from "framer-motion";
 import { Calendar, ExternalLink, FolderOpen, Hash, Layers, MoreVertical, Pencil, Plus, Trash2, Waypoints } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export default function ProjectsCard() {
@@ -92,17 +94,28 @@ type ProjectCardProps = {
     description?: string;
     workflowCount: number;
     createdAt: string;
-    onDelete: (id: string, workflowCount: number) => void;
+    onDelete: (id: string, workflowCount: number) => Promise<void>;
 }
 
 export function ProjectCard({ id, name, description, workflowCount, createdAt, onDelete }: ProjectCardProps) {
-
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const formattedDate = new Date(createdAt).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric"
     });
+
+    const handleConfirmDelete = async () => {
+        setIsDeleting(true);
+        try {
+            await onDelete(id, workflowCount);
+            setIsConfirmOpen(false);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     return (
         <motion.div
@@ -143,7 +156,7 @@ export function ProjectCard({ id, name, description, workflowCount, createdAt, o
                                 </DropdownMenuItem>
                             </Link>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => onDelete(id, workflowCount)}
+                            <DropdownMenuItem onClick={() => setIsConfirmOpen(true)}
                                 className="text-destructive"
                             >
                                 <Trash2 className="mr-2 h-4 w-4" />
@@ -152,6 +165,20 @@ export function ProjectCard({ id, name, description, workflowCount, createdAt, o
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+
+                    <ConfirmDialog
+                        open={isConfirmOpen}
+                        onOpenChange={setIsConfirmOpen}
+                        title="Delete this project?"
+                        description={
+                            workflowCount > 0
+                                ? `"${name}" has ${workflowCount} workflow${workflowCount === 1 ? "" : "s"} in it. Move or delete them first — projects with workflows can't be deleted.`
+                                : `This permanently deletes "${name}". This action cannot be undone.`
+                        }
+                        confirmLabel="Delete Project"
+                        isConfirming={isDeleting}
+                        onConfirm={handleConfirmDelete}
+                    />
                 </CardHeader>
 
                 <CardContent className="flex-1 z-10 flex flex-col">
@@ -177,7 +204,7 @@ export function ProjectCard({ id, name, description, workflowCount, createdAt, o
                 </CardContent>
 
                 <CardFooter className="pt-3 pb-3 border-t border-border/40 bg-muted/10 flex items-center justify-between z-10">
-                    <Link href={`/projects/${id}/workflows`}>
+                    <Link href={`/projects/${id}`}>
                         <Button variant="secondary" className="justify-between hover:bg-secondary/80 transition-all duration-200 group/btn shadow-sm" >
                             <span className="font-medium text-sm">Open Workflows</span>
                             <ExternalLink className="h-4 w-4 opacity-70 group-hover/btn:opacity-100 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-all duration-200" />

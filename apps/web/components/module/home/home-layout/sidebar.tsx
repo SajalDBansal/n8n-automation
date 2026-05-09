@@ -15,8 +15,8 @@ import {
 } from "@workspace/ui/components/sidebar"
 import Link from "next/link"
 import { NavUser } from "./sidebar-user"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { headers } from "next/headers"
+import { auth } from "@/lib/auth"
 import ProjectsList from "./projects-list"
 
 const navigationData = [
@@ -47,7 +47,7 @@ const navigationData = [
 ];
 
 export async function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
 
     if (!session || !session.user) return null;
 

@@ -3,7 +3,7 @@ import { Button } from "@workspace/ui/components/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
-export default function NewProjectsPage() {
+export default function ProjectsPage() {
     return (
         <div className="flex flex-1 flex-col gap-4 w-full max-w-7xl mx-auto h-full overflow-hidden p-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

@@ -3,7 +3,7 @@ import { Button } from "@workspace/ui/components/button";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-export default function ProjectIdPage() {
+export default function NewProjectPage() {
     return (
         <div className="flex flex-1 flex-col gap-4 w-full max-w-3xl mx-auto h-full overflow-hidden p-2">
             <div className="flex gap-4 items-center">

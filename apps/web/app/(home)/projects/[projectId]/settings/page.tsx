@@ -1,12 +1,12 @@
 "use client";
 
-import { User, Mail, Shield, Smartphone, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import UpdateProjectCard from "@/components/module/home/projects/update-project-card";
 
-export default function ProjectSettinsPage() {
+export default function ProjectSettingsPage() {
     const { projectId }: { projectId: string } = useParams();
 
     return (

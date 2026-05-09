@@ -1,19 +1,19 @@
 "use client"
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import { Layers, Loader2, Plus, Trash } from "lucide-react";
+import { Layers, Loader2, Trash } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import Link from "next/link";
 import { Form } from "@workspace/ui/components/form";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createWorkflowFormZodSchema } from "@workspace/validators";
-import { CreateProjectFormValues, CreateWorkflowFormValues, ProjectType } from "@workspace/types";
+import { CreateWorkflowFormValues } from "@workspace/types";
 import { useRouter } from "next/navigation";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@workspace/ui/components/field";
 import { Input } from "@workspace/ui/components/input";
-import { deleteProjectOptimistic, updateProjectOptimistic } from "@/action/client/project";
 import { useProjectStore } from "@/store/projects";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useEffect, useState } from "react";
 import { deleteWorkflowOptimistic, updateWorkflowOptimistic } from "@/action/client/workflow";
 
@@ -24,6 +24,8 @@ export default function UpdateWorkflowCard({ projectId, workflowId }: { projectI
 
     const currentProject = projects?.find((p) => p.id === projectId) ?? null;
     const currentWorkflow = currentProject?.workflows ? currentProject?.workflows.find((flow) => flow.id === workflowId) : null;
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const form = useForm<CreateWorkflowFormValues>({
         resolver: zodResolver(createWorkflowFormZodSchema),
@@ -38,20 +40,24 @@ export default function UpdateWorkflowCard({ projectId, workflowId }: { projectI
             setIsWorkflowExists(true);
             form.reset({
                 name: currentWorkflow.name,
-                description: "",
+                description: currentWorkflow.description ?? "",
             });
         }
-    }, [currentProject, form]);
+    }, [currentWorkflow, form]);
 
     async function onSubmit(data: CreateWorkflowFormValues) {
         await updateWorkflowOptimistic(projectId, { id: workflowId, name: data.name, description: data.description || "" });
         router.push(`/projects/${projectId}/${workflowId}`);
     }
 
-    async function handleProjectDelete() {
-        if (currentWorkflow) {
+    async function handleWorkflowDelete() {
+        if (!currentWorkflow) return;
+        setIsDeleting(true);
+        try {
             await deleteWorkflowOptimistic(projectId, currentWorkflow);
             router.push(`/projects/${projectId}`);
+        } finally {
+            setIsDeleting(false);
         }
     }
 
@@ -77,14 +83,13 @@ export default function UpdateWorkflowCard({ projectId, workflowId }: { projectI
                     <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4">
                         <Layers className="h-6 w-6" />
                     </div>
-                    <h3 className="text-xl font-semibold tracking-tight">No projects yet</h3>
+                    <h3 className="text-xl font-semibold tracking-tight">Workflow not found</h3>
                     <p className="mb-6 mt-2 text-muted-foreground max-w-sm">
-                        You haven't created any projects. Group your workflows together by creating your first project.
+                        This workflow doesn't exist or you don't have access to it.
                     </p>
                     <Button className="rounded-xl">
-                        <Link href="/projects/new" className="flex items-center justify-center">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Create Project
+                        <Link href={`/projects/${projectId}`} className="flex items-center justify-center">
+                            Back to Project
                         </Link>
                     </Button>
                 </div>
@@ -182,8 +187,8 @@ export default function UpdateWorkflowCard({ projectId, workflowId }: { projectI
 
                     <Card className="bg-background/50 backdrop-blur-xl border-border/50 h-full">
                         <CardHeader>
-                            <CardTitle>Danger Zoney</CardTitle>
-                            <CardDescription>Permanently delete this project and all associated data. This action cannot be undone.</CardDescription>
+                            <CardTitle>Danger Zone</CardTitle>
+                            <CardDescription>Permanently delete this workflow and all associated data. This action cannot be undone.</CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col justify-between h-full">
                             <div className="flex items-center justify-between p-4 rounded-xl bg-destructive/5 border border-destructive/30">
@@ -192,9 +197,9 @@ export default function UpdateWorkflowCard({ projectId, workflowId }: { projectI
                                         <Trash className="h-5 w-5 text-destructive" />
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-destructive">Delete Project</h4>
+                                        <h4 className="font-bold text-destructive">Delete Workflow</h4>
                                         <p className="text-sm text-destructive">
-                                            Permanently delete this project and all its workflows. This action cannot be undone.
+                                            Permanently delete this workflow and its execution history. This action cannot be undone.
                                         </p>
                                     </div>
                                 </div>
@@ -203,13 +208,23 @@ export default function UpdateWorkflowCard({ projectId, workflowId }: { projectI
                                     variant="destructive"
                                     size="sm"
                                     className="rounded-lg cursor-pointer"
-                                    onClick={handleProjectDelete}
+                                    onClick={() => setIsConfirmOpen(true)}
                                 >
                                     Delete
                                 </Button>
                             </div>
                         </CardContent>
                     </Card>
+
+                    <ConfirmDialog
+                        open={isConfirmOpen}
+                        onOpenChange={setIsConfirmOpen}
+                        title="Delete this workflow?"
+                        description={`This permanently deletes "${currentWorkflow?.name ?? "this workflow"}" and its execution history. This action cannot be undone.`}
+                        confirmLabel="Delete Workflow"
+                        isConfirming={isDeleting}
+                        onConfirm={handleWorkflowDelete}
+                    />
                 </div>
 
             )}

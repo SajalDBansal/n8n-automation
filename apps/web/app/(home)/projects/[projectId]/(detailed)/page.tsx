@@ -33,7 +33,7 @@ export default function ProjectIdPage() {
 
                 setWorkflows(res.workflows ?? []);
             } catch (error) {
-                console.log(error);
+                console.error("Error fetching workflows:", error);
             } finally {
                 setLoading(false);
             }
@@ -85,6 +85,9 @@ export default function ProjectIdPage() {
                                 description={wf.description || ""}
                                 isActive={wf.active as any}
                                 updatedAt={wf.updatedAt}
+                                onDeleted={(deletedId) =>
+                                    setWorkflows((prev) => prev.filter((w) => w.id !== deletedId))
+                                }
                             />
                         </motion.div>
                     ))}

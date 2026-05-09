@@ -30,7 +30,8 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from "@workspace/ui/components/sidebar"
-import { signOut } from "next-auth/react"
+import { signOut } from "@/lib/auth-client"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 export function NavUser({
@@ -44,10 +45,11 @@ export function NavUser({
     }
 }) {
     const { isMobile } = useSidebar()
+    const router = useRouter()
     const fallbackAvatar = user.name.slice(0, 2).toUpperCase();
 
     const handleSignOut = () => {
-        signOut({ callbackUrl: '/' });
+        signOut({ fetchOptions: { onSuccess: () => router.push('/') } });
     }
 
     return (

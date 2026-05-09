@@ -1,13 +1,13 @@
 import AppFooter from "@/components/module/home/home-layout/footer";
 import AppHeader from "@/components/module/home/home-layout/header";
 import { AppSidebar } from "@/components/module/home/home-layout/sidebar";
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar";
-import { getServerSession } from "next-auth"
+import { headers } from "next/headers"
 import { redirect } from "next/navigation";
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
     if (!session) redirect("/signin");
 
     return (

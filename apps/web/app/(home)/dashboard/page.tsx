@@ -1,17 +1,14 @@
 import OverviewStats from "@/components/module/home/dashboard/kpi-section"
 import RecentExecutionTable from "@/components/module/home/dashboard/recent-executions-table"
 import SystemHealth from "@/components/module/home/dashboard/system-health"
-import { OverviewStatsPageDataType } from "@workspace/types"
+import { getDashboardOverviewStats, getRecentExecutions } from "@/lib/db-calls"
 
-// TODO : convert to real data
-const OVERVIEW_STATS_DATA: OverviewStatsPageDataType = {
-    totalWorkflows: 24,
-    totalExecutionsToday: 1246,
-    activeProjects: 7,
-    failedExecutionToday: 3
-}
+export default async function DashboardPage() {
+    const [overviewStats, recentExecutions] = await Promise.all([
+        getDashboardOverviewStats(),
+        getRecentExecutions(5),
+    ]);
 
-export default function DashboardPage() {
     return (
         <div className="flex flex-1 flex-col gap-4 w-full max-w-7xl mx-auto h-full overflow-hidden p-2">
             <div className="flex flex-col gap-2">
@@ -20,11 +17,11 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <OverviewStats stats={OVERVIEW_STATS_DATA} />
+                <OverviewStats stats={overviewStats} />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 mt-4">
-                <RecentExecutionTable />
+                <RecentExecutionTable executions={recentExecutions} />
                 <SystemHealth />
             </div>
         </div>

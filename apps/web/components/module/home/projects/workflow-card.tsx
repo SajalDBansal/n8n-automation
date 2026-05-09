@@ -1,10 +1,16 @@
+"use client";
+
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@workspace/ui/components/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@workspace/ui/components/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { deleteWorkflowByID } from "@/action/db/workflow";
 import { motion } from "framer-motion";
-import { CircleCheck, Clock, FolderOpen, Hash, Layers, MoreVertical, Pause, Pencil, Play, Settings, Trash2, TriangleAlert } from "lucide-react";
+import { CircleCheck, Clock, FolderOpen, Hash, Layers, MoreVertical, Pencil, Play, Settings, Trash2, TriangleAlert } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface WorkflowCardProps {
     id: string;
@@ -13,15 +19,37 @@ interface WorkflowCardProps {
     description?: string;
     isActive: boolean;
     updatedAt: Date;
-    projectName?: string
+    projectName?: string;
+    onDeleted?: (workflowId: string) => void;
 }
 
-export function WorkflowCard({ id, projectId, name, description, isActive, updatedAt, projectName }: WorkflowCardProps) {
+export function WorkflowCard({ id, projectId, name, description, isActive, updatedAt, projectName, onDeleted }: WorkflowCardProps) {
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const formattedDate = new Date(updatedAt).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric"
     });
+
+    const handleConfirmDelete = async () => {
+        setIsDeleting(true);
+        try {
+            const res = await deleteWorkflowByID(projectId, id);
+            if (!res.success) {
+                toast.error(res.message || "Failed to delete workflow");
+                return;
+            }
+            setIsConfirmOpen(false);
+            onDeleted?.(id);
+        } catch (error) {
+            console.error("Error deleting workflow:", error);
+            toast.error("Failed to delete workflow");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     return (
         <motion.div
@@ -66,18 +94,32 @@ export function WorkflowCard({ id, projectId, name, description, isActive, updat
                                     Edit
                                 </DropdownMenuItem>
                             </Link>
-                            <DropdownMenuSeparator />
                             <Link href={`/projects/${projectId}/${id}/settings`}>
-                                <DropdownMenuItem
-                                    className="text-destructive"
-                                >
+                                <DropdownMenuItem>
                                     <Settings className="mr-2 h-4 w-4" />
                                     <span>Settings</span>
-
                                 </DropdownMenuItem>
                             </Link>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onClick={() => setIsConfirmOpen(true)}
+                                className="text-destructive"
+                            >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Delete Workflow</span>
+                            </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+
+                    <ConfirmDialog
+                        open={isConfirmOpen}
+                        onOpenChange={setIsConfirmOpen}
+                        title="Delete this workflow?"
+                        description={`This permanently deletes "${name}". This action cannot be undone.`}
+                        confirmLabel="Delete Workflow"
+                        isConfirming={isDeleting}
+                        onConfirm={handleConfirmDelete}
+                    />
 
                 </CardHeader>
 

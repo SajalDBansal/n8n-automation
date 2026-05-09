@@ -13,13 +13,10 @@ export default function AppHeader() {
 
     const routeNames: Record<string, string> = {
         dashboard: "Dashboard",
-        habits: "Habits",
-        "create-habit": "Create Habit",
     }
 
     const breadcrumbs = segments.map((segment, index) => {
         const href = "/" + segments.slice(0, index + 1).join("/")
-        // const label = decodeURIComponent(segment)
         const label = routeNames[segment] ?? segment
             .replace(/-/g, " ")
             .replace(/\b\w/g, (c) => c.toUpperCase())

@@ -20,7 +20,7 @@ export default function WorkflowCards() {
 
                 setworkflows(res.workflows ?? []);
             } catch (error) {
-                console.log(error);
+                console.error("Error fetching workflows:", error);
             } finally {
                 setLoading(false);
             }
@@ -67,9 +67,9 @@ export default function WorkflowCards() {
                         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4">
                             <Workflow className="h-6 w-6" />
                         </div>
-                        <h3 className="text-xl font-semibold tracking-tight">No projects yet</h3>
+                        <h3 className="text-xl font-semibold tracking-tight">No workflows yet</h3>
                         <p className="mb-6 mt-2 text-muted-foreground max-w-sm">
-                            You haven't created any projects. Group your workflows together by creating your first project.
+                            You haven't created any workflows. Open a project and add your first workflow to get started.
                         </p>
                     </div>
                 )}
@@ -92,6 +92,9 @@ export default function WorkflowCards() {
                                     isActive={wf.active as any}
                                     updatedAt={wf.updatedAt}
                                     projectName={wf.project.name}
+                                    onDeleted={(deletedId) =>
+                                        setworkflows((prev) => prev.filter((w) => w.id !== deletedId))
+                                    }
                                 />
                             </motion.div>
                         ))}

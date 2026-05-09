@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Input } from "@workspace/ui/components/input";
 import { deleteProjectOptimistic, updateProjectOptimistic } from "@/action/client/project";
 import { useProjectStore } from "@/store/projects";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useEffect, useState } from "react";
 
 export default function UpdateProjectCard({ projectId }: { projectId: string }) {
@@ -23,6 +24,8 @@ export default function UpdateProjectCard({ projectId }: { projectId: string }) 
     const [project, setProject] = useState<ProjectType | null>(null);
 
     const currentProject = projects?.find((p) => p.id === projectId) ?? null;
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const form = useForm<CreateProjectFormValues>({
         resolver: zodResolver(createProjectFormZodSchema),
@@ -50,8 +53,13 @@ export default function UpdateProjectCard({ projectId }: { projectId: string }) 
     }
 
     async function handleProjectDelete() {
-        await deleteProjectOptimistic(projectId, true);
-        router.push(`/projects`);
+        setIsDeleting(true);
+        try {
+            await deleteProjectOptimistic(projectId, true);
+            router.push(`/projects`);
+        } finally {
+            setIsDeleting(false);
+        }
     }
 
 
@@ -213,7 +221,7 @@ export default function UpdateProjectCard({ projectId }: { projectId: string }) 
 
                     <Card className="bg-background/50 backdrop-blur-xl border-border/50 h-full">
                         <CardHeader>
-                            <CardTitle>Danger Zoney</CardTitle>
+                            <CardTitle>Danger Zone</CardTitle>
                             <CardDescription>Permanently delete this project and all associated data. This action cannot be undone.</CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col justify-between h-full">
@@ -234,13 +242,23 @@ export default function UpdateProjectCard({ projectId }: { projectId: string }) 
                                     variant="destructive"
                                     size="sm"
                                     className="rounded-lg cursor-pointer"
-                                    onClick={handleProjectDelete}
+                                    onClick={() => setIsConfirmOpen(true)}
                                 >
                                     Delete
                                 </Button>
                             </div>
                         </CardContent>
                     </Card>
+
+                    <ConfirmDialog
+                        open={isConfirmOpen}
+                        onOpenChange={setIsConfirmOpen}
+                        title="Delete this project?"
+                        description={`This permanently deletes "${project?.name ?? "this project"}" and every workflow inside it. This action cannot be undone.`}
+                        confirmLabel="Delete Project"
+                        isConfirming={isDeleting}
+                        onConfirm={handleProjectDelete}
+                    />
                 </div>
 
             )}

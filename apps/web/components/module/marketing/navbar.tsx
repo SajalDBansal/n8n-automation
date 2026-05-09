@@ -3,11 +3,11 @@ import { Waypoints } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggler";
 import { Button } from "@workspace/ui/components/button";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 
 export default async function Navbar() {
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md supports-backdrop-filter:bg-background/60">

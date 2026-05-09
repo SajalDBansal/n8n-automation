@@ -14,7 +14,6 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@workspace/ui/c
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
 import { Input } from "@workspace/ui/components/input";
 import { createProjectOptimistic } from "@/action/client/project";
-import { useSession } from "next-auth/react";
 
 export default function CreateProjectCard() {
     const router = useRouter();

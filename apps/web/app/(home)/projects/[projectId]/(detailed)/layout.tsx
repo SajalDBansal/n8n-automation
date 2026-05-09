@@ -1,5 +1,5 @@
-import { authOptions } from "@/lib/auth"
-import { getServerSession } from "next-auth"
+import { auth } from "@/lib/auth"
+import { headers } from "next/headers"
 import { redirect } from "next/navigation";
 import ProjectOverviewStats from "@/components/module/home/projects/project-overview-stats";
 import { Badge } from "@workspace/ui/components/badge";
@@ -13,7 +13,7 @@ export default async function ProjectLayout(
     { children, params }:
         { children: React.ReactNode, params: Promise<{ projectId: string }>, }) {
     const { projectId } = await params;
-    const session = await getServerSession(authOptions);
+    const session = await auth.api.getSession({ headers: await headers() });
     if (!session) redirect("/signin");
 
 
