@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import type { Metadata } from "next";
 import "@workspace/ui/styles/globals.css"
 import { cn } from "@workspace/ui/lib/utils";
@@ -6,11 +6,18 @@ import { ThemeProvider } from "@/providers/theme-provider"
 import { Toaster } from "@workspace/ui/components/sonner";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 
-const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
+const geist = localFont({
+  src: "./fonts/Geist-Variable.woff2",
+  variable: "--font-sans",
+  weight: "100 900",
+  display: "swap",
+})
 
-const fontMono = Geist_Mono({
-  subsets: ["latin"],
+const fontMono = localFont({
+  src: "./fonts/GeistMono-Variable.woff2",
   variable: "--font-mono",
+  weight: "100 900",
+  display: "swap",
 })
 
 export const metadata: Metadata = {
